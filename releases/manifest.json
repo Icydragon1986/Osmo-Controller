@@ -1,6 +1,6 @@
 {
-  "version": "0.10.1",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.10.1.zip",
-  "sha256": "bdfd6e5efdcb748073f7ecba6c822277f659d608ffa0ddcfd5883ac1a3e17be0",
-  "notes": "Support Mac (FrameReassembler), auto-update branché (launcher.py), packaging .exe Windows."
+  "version": "0.11.0",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.11.0.zip",
+  "sha256": "09d8029bbbabfc750709e4b49652f173f014f5bbad662afc6e9dd71e72886004",
+  "notes": "Accès LAN avec comptes (admin/operator) pour contrôle depuis iPad et autres appareils sur le même Wi-Fi."
 }
