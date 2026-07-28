@@ -1,28 +1,27 @@
 """
-Test — RÉVEIL PAR DIFFUSION BLE (2e hypothèse, différente de wake_test.py).
+Test — RÉVEIL PAR DIFFUSION BLE, cycle 100% logiciel (v2).
 
-`hardware/wake_test.py` a montré que renvoyer power_mode=0 sur la connexion
-existante NE réveille PAS la caméra. La doc officielle DJI (Q&A.md +
-"Camera Power Mode Settings (001A)") décrit un mécanisme différent : le PC
-doit DIFFUSER (broadcast) un paquet BLE spécial "WKP<MAC inversée>" pendant
-~2 secondes — la caméra le capte même en veille — puis on doit RECONNECTER
-(la connexion se coupe pendant la veille).
-
-Conditions à respecter (documentées par DJI) :
-  - s'être déjà connecté à CETTE caméra récemment (fais tourner
-    control_test.py ou l'appli une fois avant, si ce n'est pas déjà fait) ;
-  - la caméra ne doit pas dormir depuis plus de 30 minutes.
+`wake_test.py` a montré que renvoyer power_mode=0 sur la connexion existante
+ne réveille pas la caméra. Le 1er essai de `wake_broadcast_test.py` (mise en
+veille MANUELLE par Jonathan, puis diffusion) n'a pas non plus fonctionné —
+mais introduisait une variable : la doc DJI documente peut-être un cycle
+logiciel complet (mise en veille PAR LA COMMANDE 0x00/0x1A power_mode=3, PUIS
+réveil par diffusion) plutôt qu'un réveil universel depuis n'importe quelle
+veille (bouton, délai d'inactivité...). Cette version teste EXACTEMENT ce
+cycle logiciel, sans jamais toucher la caméra à la main, pour isoler la
+variable.
 
 Déroulé :
-  1. connexion BLE normale, abonnement statut, commande START (en attente),
-  2. déconnexion volontaire,
-  3. mets la caméra en veille TOI-MÊME (bouton, ou attends qu'elle s'endorme),
-  4. appuie sur Entrée dans ce terminal quand elle est en veille,
-  5. diffusion du paquet de réveil pendant 2 s,
-  6. tentative de reconnexion (plusieurs essais, quelques secondes chacun),
-  7. si reconnecté : observe si l'enregistrement (envoyé à l'étape 1) a démarré.
+  1. connexion BLE, abonnement statut, commande START (mise en attente),
+  2. commande VEILLE LOGICIELLE (0x00/0x1A, power_mode=3),
+  3. déconnexion (le lien BLE tombe normalement pendant la veille),
+  4. pause de quelques secondes,
+  5. diffusion du paquet de réveil (WKP + MAC inversée) pendant 2 s,
+  6. tentative de reconnexion (plusieurs essais),
+  7. si reconnecté : le START de l'étape 1 a-t-il pris effet ?
 
->>> REGARDE LA CAMÉRA à l'étape 6-7 : se rallume-t-elle TOUTE SEULE ? <<<
+>>> REGARDE LA CAMÉRA à chaque étape : éteinte à l'étape 2-3, rallumée TOUTE
+    SEULE à l'étape 6 ? <<<
 
 Usage : python hardware/wake_broadcast_test.py [adresse]
 """
@@ -60,6 +59,8 @@ def on_notify(_char, data: bytearray):
         print(f"    >>> STATUT reçu : is_recording={st['is_recording']}  batterie={st['battery_pct']}%")
     elif (f.cmd_set, f.cmd_id) == (0x1D, 0x03):
         print(f"    >>> réponse RECORD, ret_code={f.payload[0] if f.payload else '?'}")
+    elif (f.cmd_set, f.cmd_id) == (0x00, 0x1A):
+        print(f"    >>> réponse POWER MODE, ret_code={f.payload[0] if f.payload else '?'}")
 
 
 async def send(client, frame, label):
@@ -67,7 +68,7 @@ async def send(client, frame, label):
     await client.write_gatt_char(FFF5, frame, response=False)
 
 
-async def try_reconnect(address: str, attempts: int = 5, timeout: float = 5.0):
+async def try_reconnect(address: str, attempts: int = 6, timeout: float = 5.0):
     for i in range(1, attempts + 1):
         print(f"  tentative de reconnexion {i}/{attempts}…")
         try:
@@ -91,11 +92,15 @@ async def main(address: str) -> None:
         await send(client, p.build_record_command(True, DEV, seq=2), "RECORD START (1D03)")
         await asyncio.sleep(1)
 
-    print("\n" + "=" * 60)
-    print(">>> Déconnecté volontairement. Mets la caméra en veille maintenant")
-    print(">>> (bouton, ou attends son délai d'extinction d'écran). <<<")
-    print("=" * 60)
-    input("Appuie sur Entrée une fois la caméra bien en veille (écran éteint)... ")
+        print("\n" + "=" * 60)
+        print(">>> VEILLE LOGICIELLE (0x00/0x1A, power_mode=3) — REGARDE l'écran <<<")
+        print("=" * 60)
+        await send(client, p.build_power_mode_command(sleep=True, seq=3), "SLEEP (0x00/0x1A)")
+        await asyncio.sleep(3)
+    print("Déconnecté (context manager) — le lien BLE devrait de toute façon tomber pendant la veille.")
+
+    print("\nPause de 3 s avant la diffusion…")
+    await asyncio.sleep(3)
 
     print("\n" + "=" * 60)
     print(">>> Diffusion du paquet de réveil pendant 2 s (WKP + MAC inversée) <<<")
@@ -107,17 +112,18 @@ async def main(address: str) -> None:
     client = await try_reconnect(address)
     if client is None:
         print("\n>>> ÉCHEC : impossible de se reconnecter. La caméra n'a probablement pas été réveillée. <<<")
+        print(">>> Cette variante (veille logicielle + réveil par diffusion) ne fonctionne pas non plus. <<<")
         return
 
     print(">>> Reconnecté ! REGARDE LA CAMÉRA : est-elle réveillée toute seule ? <<<")
     await client.start_notify(FFF4, on_notify)
-    await send(client, p.build_status_subscription(seq=3), "abonnement statut (1D05)")
+    await send(client, p.build_status_subscription(seq=4), "abonnement statut (1D05)")
     await asyncio.sleep(3)
     print("\n>>> Dernier statut connu :", _last_status or "(aucun reçu)")
     print(">>> is_recording devrait être True si le START de l'étape 1 a bien pris effet <<<")
 
     print("\n>>> STOP (1D03) pour nettoyer, au cas où ça enregistre <<<")
-    await send(client, p.build_record_command(False, DEV, seq=4), "RECORD STOP (1D03)")
+    await send(client, p.build_record_command(False, DEV, seq=5), "RECORD STOP (1D03)")
     await asyncio.sleep(2)
     await client.disconnect()
     print("\nFin du test.")
