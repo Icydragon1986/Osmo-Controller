@@ -103,20 +103,23 @@ défaut du dépôt tant qu'il n'y a pas encore de dépôt GitHub public). Si le
 manifeste est injoignable (pas de Wi-Fi, mauvaise URL…), l'app continue de
 fonctionner normalement — l'échec est seulement journalisé dans la console.
 
-Manifeste type, à publier sur GitHub à chaque nouvelle version :
-
-```json
-{ "version": "0.10.0", "url": "https://.../osmo-0.10.0.zip", "sha256": "…" }
-```
+Le dossier `releases/` du dépôt contient `manifest.json` + le zip de chaque
+version publiée (juste le contenu de `app/`, testé de bout en bout — téléchargement,
+vérification SHA-256, application — contre ces vrais fichiers). Pas besoin de
+GitHub Releases : un simple `git push` avec ces fichiers suffit, servis ensuite
+via `raw.githubusercontent.com`.
 
 **Reste à faire, de ton côté (compte/dépôt GitHub — je ne peux pas le faire à
 ta place)** :
-1. créer un dépôt GitHub (public ou privé, peu importe pour `raw.githubusercontent.com`) ;
-2. à chaque version : zipper le contenu de `app/`, calculer son SHA-256
-   (`python -c "import hashlib;print(hashlib.sha256(open('zip','rb').read()).hexdigest())"`),
-   publier le zip (ex. en Release GitHub) et mettre à jour `manifest.json` dans le dépôt ;
-3. mettre l'URL brute (`raw.githubusercontent.com/.../manifest.json`) dans
-   `update_config.json` de chaque poste.
+1. créer un dépôt GitHub **public** (ex. nom `Osmo-Controller`) ;
+2. me dire son URL pour que je fasse `git push` (avec ta confirmation) ;
+3. mettre l'URL brute du manifeste
+   (`https://raw.githubusercontent.com/<toi>/<repo>/main/releases/manifest.json`)
+   dans `update_config.json` — je peux le faire une fois l'URL connue.
+
+À chaque nouvelle version ensuite : zipper le contenu de `app/` dans
+`releases/osmo-X.Y.Z.zip`, recalculer son SHA-256, mettre à jour
+`releases/manifest.json` (version/url/sha256), commit + push.
 
 ## Packager en .exe (Windows)
 
