@@ -1,6 +1,6 @@
 {
-  "version": "0.14.1",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.14.1.zip",
-  "sha256": "d22e23cae3bac870a55a34ba929df7b1706904259687fd127b237db46648cfb7",
-  "notes": "Ajoute la commande Power Mode Switch (protocole DJI officiel) comme hypothese de reveil a distance, non encore verifiee sur materiel. Script hardware/wake_test.py pour la tester."
+  "version": "0.14.2",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.14.2.zip",
+  "sha256": "6a7fb6d9b143d5c3f4aa2c958465fa5f261b12d7605d99ff8d786bcc87286752",
+  "notes": "Nouvelle piste pour le reveil a distance : diffusion BLE WKP+MAC (doc DJI officielle), non encore verifiee sur materiel. power_mode=0 confirme ne PAS fonctionner (teste par Jonathan)."
 }

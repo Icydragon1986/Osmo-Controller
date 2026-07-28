@@ -313,16 +313,22 @@ matériel — le reste de la pile ne change pas selon le transport utilisé.
 - **Vérification du cadrage (aperçu vidéo)** : mise en pause (bouton « à venir »,
   désactivé). Le flux vidéo sans fil (RTMP par WiFi) demande un gros travail de
   reverse-engineering non résolu ; à reprendre plus tard.
-- **Réveil à distance depuis la veille** : NON VÉRIFIÉ, à tester. Jonathan a
-  constaté qu'une commande START (1D03) envoyée pendant que la caméra est en
-  veille ne démarre pas tout de suite, mais que l'enregistrement débute dès
-  qu'il la réveille MANUELLEMENT — donc le Bluetooth reste connecté et la
-  commande semble mise en attente plutôt que perdue. La doc officielle DJI
-  (`docs/add_camera_sleep_feature_example.md` du SDK) documente une commande
-  « Power Mode Switch » (0x00/0x1A, `power_mode` 0=normal/3=veille) pour
-  mettre la caméra EN veille, mais ne dit rien sur le réveil — l'hypothèse
-  (renvoyer `power_mode=0` réveille la caméra) est implémentée dans
-  `protocol.py` (`build_power_mode_command`) et testable avec
-  `python hardware/wake_test.py`, **mais je n'ai pas pu la vérifier sur la
-  vraie caméra** (hors de portée au moment d'écrire ceci). Rien n'est branché
-  dans l'app tant que ce n'est pas confirmé.
+- **Réveil à distance depuis la veille** : EN COURS, 2 hypothèses testées.
+  1. ❌ **Réfutée par Jonathan sur matériel réel** : renvoyer `power_mode=0`
+     (`build_power_mode_command` / `hardware/wake_test.py`) sur la connexion
+     existante NE réveille PAS la caméra (elle se met bien en veille, mais
+     ne se réveille pas).
+  2. 🧪 **Nouvelle piste, pas encore testée sur matériel** : la doc officielle
+     DJI (`Q&A.md` + « Camera Power Mode Settings (001A) » du SDK) décrit en
+     fait un mécanisme différent — le PC doit **diffuser** (broadcast) un
+     paquet BLE spécial `"WKP" + adresse MAC de la caméra inversée` pendant
+     ~2 s (la caméra le capte même en veille), PUIS **reconnecter** (le lien
+     BLE se coupe pendant la veille, selon la doc). Conditions DJI : s'être
+     connecté à cette caméra récemment, et veille de moins de 30 minutes.
+     Implémenté dans `wake_broadcast.py` (`broadcast_wake`, via
+     `winrt-Windows.Devices.Bluetooth.Advertisement` — déjà présent, c'est
+     une dépendance de `bleak` sur Windows) + testable avec
+     `python hardware/wake_broadcast_test.py`. **Vérifié seulement que l'API
+     de diffusion fonctionne sans erreur** (démarré/arrêté avec succès) ;
+     **pas encore testé contre la vraie caméra** (hors de portée). Rien
+     n'est branché dans l'app tant que ce n'est pas confirmé.
