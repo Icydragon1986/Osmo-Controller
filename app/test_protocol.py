@@ -60,6 +60,18 @@ check("device_id encodé == 00 00 44 FF", ps.payload[0:4] == bytes([0x00, 0x00, 
 print("    START frame :", start.hex(" "))
 print("    STOP  frame :", stop.hex(" "))
 
+print("\n4b) Power Mode Switch (0x00/0x1A) — veille/réveil (hypothèse à vérifier sur matériel)")
+sleep_frame = p.build_power_mode_command(sleep=True, seq=10)
+wake_frame = p.build_power_mode_command(sleep=False, seq=11)
+pf_sleep = p.parse_frame(sleep_frame)
+pf_wake = p.parse_frame(wake_frame)
+check("sleep : CRC valides", pf_sleep.crc16_ok and pf_sleep.crc32_ok)
+check("sleep : CmdSet/CmdID == 00/1A", pf_sleep.cmd_set == 0x00 and pf_sleep.cmd_id == 0x1A)
+check("sleep : power_mode == 3", pf_sleep.payload[0] == 0x03)
+check("wake  : power_mode == 0", pf_wake.payload[0] == 0x00)
+print("    sleep frame :", sleep_frame.hex(" "))
+print("    wake  frame :", wake_frame.hex(" "))
+
 print("\n5) Abonnement statut (1D05) + décodage d'un push (1D02) simulé")
 sub = p.build_status_subscription(seq=3)
 check("1D05 : CRC valides", p.parse_frame(sub).crc16_ok and p.parse_frame(sub).crc32_ok)

@@ -207,6 +207,20 @@ def build_record_command(start: bool, device_id_16: int, seq: int) -> bytes:
     return build_frame(0x1D, 0x03, payload, seq)
 
 
+POWER_MODE_NORMAL = 0x00
+POWER_MODE_SLEEP = 0x03
+
+
+def build_power_mode_command(sleep: bool, seq: int) -> bytes:
+    """Power Mode Switch (0x00/0x1A). Documenté par DJI pour mettre la caméra
+    en veille (power_mode=3, docs/add_camera_sleep_feature_example.md du SDK
+    officiel) ; la doc ne couvre PAS explicitement le réveil, mais renvoyer
+    au mode normal (power_mode=0) via la même commande est l'hypothèse la
+    plus probable — À VÉRIFIER SUR MATÉRIEL RÉEL avant de s'y fier."""
+    power_mode = POWER_MODE_SLEEP if sleep else POWER_MODE_NORMAL
+    return build_frame(0x00, 0x1A, bytes([power_mode]), seq=seq)
+
+
 def build_connection_request(seq: int, device_id_u32: int = 0xFF440000,
                              verify_mode: int = 1, verify_data: int = 0x0000,
                              mac_addr: bytes = b"") -> bytes:
