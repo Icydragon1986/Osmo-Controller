@@ -67,14 +67,28 @@ Si aucun compte n'existe, l'app le rappelle au démarrage et personne ne peut
 se connecter tant que tu n'en as pas ajouté au moins un.
 
 **2. Rendre le PC accessible sur le réseau** : lance avec `--host 0.0.0.0`
-(déjà fait dans `Lancer Osmo Controller.bat`/`.command`). Trouve l'adresse IP
-locale du PC (`ipconfig` sur Windows, `ifconfig`/`ipconfig getifaddr en0` sur
-Mac), puis sur l'iPad, ouvre Safari à `http://<IP-du-PC>:8765/` — tu peux
-ensuite « Ajouter à l'écran d'accueil » pour une icône comme une vraie appli.
+(déjà fait dans `Lancer Osmo Controller.bat`/`.command`). Le PC affiche alors
+dans sa console les adresses à utiliser (ex. `http://10.0.0.212:8765/`) —
+tape-la dans Safari sur l'iPad, puis « Ajouter à l'écran d'accueil » pour une
+icône comme une vraie appli.
 
-**3. Sans Wi-Fi de tournoi fiable** : le PC peut créer son propre point d'accès
-Wi-Fi (hotspot), et tout le monde (y compris le PC lui-même, si besoin)
-s'y connecte à la place — ça reste un seul réseau, un seul PC-relais.
+**3. Encore plus simple : le bouton « 📶 Connexion iPad »** — une fois connecté
+sur le PC, ce bouton affiche un **code QR par adresse détectée** : pointe la
+caméra de l'iPad dessus, Safari s'ouvre directement sur la bonne page, sans
+taper d'adresse. Nécessite `pip install qrcode` sur le PC (sinon le reste de
+l'app fonctionne quand même, juste sans ce bouton).
+
+**4. Sans Wi-Fi de tournoi fiable** : le PC peut créer son propre point d'accès
+Wi-Fi (hotspot), sans avoir besoin d'internet — c'est un réseau local comme un
+routeur maison, les appareils s'y voient entre eux même hors ligne. Tout le
+monde (y compris le PC lui-même, si besoin) s'y connecte à la place ; ça reste
+un seul réseau, un seul PC-relais.
+
+⚠️ **L'iPad ne peut pas remplacer ce PC-relais** : Safari (et iOS en général)
+n'a aucun accès au Bluetooth bas niveau que `bleak` utilise — ce n'est pas une
+histoire de permission mais une limite d'iOS. Une appli native (Swift) pourrait
+le faire, mais redemande un Mac + une réécriture complète du protocole ; **un
+seul PC/laptop suffit pour toute l'équipe**, pas besoin d'un par personne.
 
 ⚠️ **Limite connue** : la connexion se fait en HTTP simple (pas HTTPS) sur le
 réseau local — quelqu'un qui écoute activement ce même réseau pourrait
@@ -239,12 +253,17 @@ matériel — le reste de la pile ne change pas selon le transport utilisé.
   public en place et vérifié en conditions réelles (voir section ci-dessus).
 - **Packaging** : `.exe` Windows fait et vérifié (voir section ci-dessus,
   `build_launcher.bat`). `.app` macOS : pas faisable sans un vrai Mac.
-- **Accès iPad + comptes** : FAIT (voir section « Accès depuis un iPad »
-  ci-dessus) — relais Wi-Fi vers le PC, comptes admin/operator, testé (curl +
-  navigateur) : connexion, restrictions de rôle (403 pour un operator qui
-  tente scan/quit), déconnexion, session expirée. **Reste à valider en
-  vrai tournoi** : portée BLE d'un PC pour plusieurs terrains (peut-être
-  plusieurs PC nécessaires), fiabilité du hotspot si le Wi-Fi du lieu manque.
+- **Accès iPad + comptes + code QR** : FAIT (voir section « Accès depuis un
+  iPad » ci-dessus) — relais Wi-Fi vers le PC, comptes admin/operator, bouton
+  QR pour se connecter sans taper d'adresse. Testé (curl + navigateur réel) :
+  connexion, restrictions de rôle (403 pour un operator qui tente scan/quit),
+  déconnexion, session expirée, QR scanné avec succès. Un bug trouvé par
+  Jonathan en test réel (`--host 0.0.0.0` faisait planter l'ouverture du
+  navigateur) a été corrigé. **Reste à valider en vrai tournoi** : portée BLE
+  d'un PC pour plusieurs terrains (peut-être plusieurs PC nécessaires),
+  fiabilité du hotspot si le Wi-Fi du lieu manque. Si tu reconstruis le `.exe`
+  (`build_launcher.bat`), ajoute `--collect-all qrcode` pour que le bouton QR
+  fonctionne aussi depuis l'exe (pas encore fait dans le build actuel).
 - **Vérification du cadrage (aperçu vidéo)** : mise en pause (bouton « à venir »,
   désactivé). Le flux vidéo sans fil (RTMP par WiFi) demande un gros travail de
   reverse-engineering non résolu ; à reprendre plus tard.

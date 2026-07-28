@@ -29,7 +29,6 @@ import argparse
 import asyncio
 import json
 import signal
-import socket
 import webbrowser
 from pathlib import Path
 
@@ -37,6 +36,7 @@ from osmo_controller.manager import CameraManager
 from osmo_controller.sim_transport import SimulatedTransport
 from osmo_controller.simulator import OsmoCameraSimulator
 from osmo_controller import webserver
+from osmo_controller.webserver import local_network_urls
 
 # Quelques états de départ variés pour rendre la démo parlante.
 _DEMO_PROFILES = [
@@ -60,22 +60,6 @@ def build_simulated_manager(n: int) -> CameraManager:
         )
         mgr.add_camera(f"Terrain {i}", transport)
     return mgr
-
-
-def _lan_ips() -> list[str]:
-    """Adresses IPv4 locales (hors loopback) — pour dire quoi taper sur l'iPad.
-
-    Une machine peut avoir plusieurs adresses (Wi-Fi, VPN…) : on les liste
-    toutes plutôt que de deviner, à essayer une par une si besoin."""
-    ips = set()
-    try:
-        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            ip = info[4][0]
-            if not ip.startswith("127."):
-                ips.add(ip)
-    except OSError:
-        pass
-    return sorted(ips)
 
 
 def already_running(port: int) -> bool:
@@ -144,11 +128,11 @@ async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
     print(f"  {len(mgr.names)} caméra(s)")
     print(f"  Interface (ce PC) : {local_url}")
     if host != "127.0.0.1":
-        ips = _lan_ips()
-        if ips:
+        urls = local_network_urls(port)
+        if urls:
             print(f"  Depuis un iPad/téléphone sur le même Wi-Fi, ouvre :")
-            for ip in ips:
-                print(f"    http://{ip}:{port}/")
+            for u in urls:
+                print(f"    {u}")
         else:
             print(f"  Accessible depuis le Wi-Fi local, mais l'adresse IP n'a "
                   f"pas pu être détectée automatiquement — cherche-la avec "

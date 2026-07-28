@@ -8,12 +8,17 @@ Pont thread → asyncio :
   - Les COMMANDES (coroutines) sont injectées dans la boucle asyncio via
     `asyncio.run_coroutine_threadsafe`, donc exécutées proprement côté asyncio.
 
-Aucune dépendance externe : http.server + json de la lib standard.
+Tout en stdlib (http.server + json). Seul le code QR de connexion (bouton
+« Connexion iPad ») a besoin du paquet `qrcode` (pur Python, pas de Pillow
+requis pour du SVG) — importé à la demande, pas exigé pour le reste de l'app
+(démo/simulation comprises).
 """
 
 from __future__ import annotations
 import asyncio
+import io
 import json
+import socket
 import threading
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,13 +30,44 @@ from .version import VERSION
 
 _WEBUI_DIR = Path(__file__).resolve().parent.parent / "webui"
 
+
+def local_network_urls(port: int) -> list[str]:
+    """Adresses IPv4 locales (hors loopback) où joindre ce serveur depuis un
+    autre appareil (iPad, téléphone) sur le même réseau (Wi-Fi ou hotspot).
+
+    Une machine peut avoir plusieurs adresses (Wi-Fi, VPN…) : on les liste
+    toutes plutôt que de deviner laquelle est la bonne."""
+    ips = set()
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ip = info[4][0]
+            if not ip.startswith("127."):
+                ips.add(ip)
+    except OSError:
+        pass
+    return [f"http://{ip}:{port}/" for ip in sorted(ips)]
+
+
+def _qr_svg(data: str) -> str:
+    # Import local : n'exige `qrcode` que si on affiche vraiment un code QR
+    # (le reste de l'app — y compris toute la démo/simulation — reste sans
+    # dépendance externe).
+    import qrcode
+    import qrcode.image.svg
+
+    img = qrcode.make(data, image_factory=qrcode.image.svg.SvgPathImage, box_size=8, border=2)
+    buf = io.BytesIO()
+    img.save(buf)
+    return buf.getvalue().decode("utf-8")
+
+
 # Actions qui touchent la config partagée (caméras) ou ferment l'app pour
 # TOUT LE MONDE : réservées au rôle admin.
 _ADMIN_ONLY_ACTIONS = {"scan", "add_camera", "remove_camera", "quit"}
 
 
 def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
-                 admin=None, on_quit=None, users_path=None, sessions=None):
+                 admin=None, on_quit=None, users_path=None, sessions=None, port=8765):
     class Handler(BaseHTTPRequestHandler):
         # HTTP/1.1 => connexions persistantes (keep-alive) : bien plus réactif
         # que le 1.0 par défaut, qui rouvre une connexion TCP à chaque clic.
@@ -156,6 +192,19 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                     "cameras": manager.snapshot(),
                 })
                 return
+            if self.path == "/api/connect-info":
+                if session is None:
+                    self._send_json({"ok": False, "error": "non authentifié"}, 401)
+                    return
+                urls = local_network_urls(port)
+                try:
+                    items = [{"url": u, "qr_svg": _qr_svg(u)} for u in urls]
+                except ImportError:
+                    self._send_json({"ok": False,
+                                     "error": "code QR indisponible (pip install qrcode)"}, 500)
+                    return
+                self._send_json({"ok": True, "items": items})
+                return
             self.send_error(404, "Route inconnue")
 
         def do_POST(self):
@@ -239,7 +288,7 @@ def start_in_thread(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                     host: str = "127.0.0.1", port: int = 8765):
     """Démarre le serveur dans un thread démon. Renvoie (server, thread, url)."""
     sessions = auth.SessionStore()
-    handler = make_handler(manager, loop, admin, on_quit, users_path, sessions)
+    handler = make_handler(manager, loop, admin, on_quit, users_path, sessions, port=port)
     server = ThreadingHTTPServer((host, port), handler)
     server.daemon_threads = True   # les requêtes en cours ne bloquent pas la fermeture
     thread = threading.Thread(target=server.serve_forever, daemon=True)

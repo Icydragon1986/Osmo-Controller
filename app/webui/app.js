@@ -430,6 +430,44 @@ async function refresh() {
 document.getElementById("recAll").addEventListener("click", () => sendRecAll(true));
 document.getElementById("stopAll").addEventListener("click", () => sendRecAll(false));
 
+// --- connexion depuis un autre appareil (QR) ------------------------ //
+const connectModal = document.getElementById("connect-modal");
+document.getElementById("connect").addEventListener("click", openConnect);
+document.getElementById("connect-close").addEventListener("click", () => (connectModal.hidden = true));
+connectModal.addEventListener("click", (e) => { if (e.target === connectModal) connectModal.hidden = true; });
+
+async function openConnect() {
+  connectModal.hidden = false;
+  const list = document.getElementById("connect-list");
+  list.innerHTML = '<div class="connect-empty">Recherche des adresses…</div>';
+  try {
+    const r = await fetch("/api/connect-info");
+    if (r.status === 401) { window.location.href = "/login"; return; }
+    const data = await r.json();
+    if (!data.ok || !data.items.length) {
+      list.innerHTML = '<div class="connect-empty">Aucune adresse réseau trouvée. ' +
+        'Vérifie que ce PC est bien connecté au Wi-Fi (ou héberge un point d\'accès).</div>';
+      return;
+    }
+    list.innerHTML = "";
+    for (const item of data.items) {
+      const el = document.createElement("div");
+      el.className = "connect-item";
+      const qr = document.createElement("div");
+      qr.className = "qr";
+      qr.innerHTML = item.qr_svg;
+      const url = document.createElement("div");
+      url.className = "url";
+      url.textContent = item.url;
+      el.appendChild(qr);
+      el.appendChild(url);
+      list.appendChild(el);
+    }
+  } catch (e) {
+    list.innerHTML = '<div class="connect-empty">Impossible de récupérer les adresses.</div>';
+  }
+}
+
 // --- gestion des caméras (modale) ---------------------------------- //
 const modal = document.getElementById("manage-modal");
 const manageBtn = document.getElementById("manage");
