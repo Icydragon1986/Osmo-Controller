@@ -40,6 +40,55 @@ temps restant, température) et enregistrement à distance. ⚠️ La caméra n'
 qu'**un** contrôleur : coupe le Bluetooth du téléphone (fermer l'app Mimo ne
 suffit pas).
 
+## Accès depuis un iPad (ou tout appareil sur le même Wi-Fi)
+
+Aucune appli native n'est nécessaire — Safari sur iPad ne supporte pas le
+Bluetooth de toute façon (Apple ne l'implémente pas). À la place, le PC/laptop
+qui contrôle déjà les caméras en Bluetooth sert de relais : les autres
+appareils (iPad, téléphone…) ouvrent simplement la page web du PC par le
+Wi-Fi — ils ne font jamais de Bluetooth eux-mêmes.
+
+**1. Comptes** (`users.json`, à la racine — jamais de mot de passe en clair,
+haché avec PBKDF2) :
+
+```bash
+python manage_users.py add jonathan motdepasse --role admin
+python manage_users.py add coach1 motdepasse2 --role operator
+python manage_users.py list
+python manage_users.py remove coach1
+```
+
+Deux rôles :
+- **admin** : tout (enregistrement, gérer les caméras, quitter l'app).
+- **operator** : juste démarrer/arrêter l'enregistrement et voir le statut —
+  ne peut pas scanner/ajouter/retirer de caméra ni fermer l'app pour tout le monde.
+
+Si aucun compte n'existe, l'app le rappelle au démarrage et personne ne peut
+se connecter tant que tu n'en as pas ajouté au moins un.
+
+**2. Rendre le PC accessible sur le réseau** : lance avec `--host 0.0.0.0`
+(déjà fait dans `Lancer Osmo Controller.bat`/`.command`). Trouve l'adresse IP
+locale du PC (`ipconfig` sur Windows, `ifconfig`/`ipconfig getifaddr en0` sur
+Mac), puis sur l'iPad, ouvre Safari à `http://<IP-du-PC>:8765/` — tu peux
+ensuite « Ajouter à l'écran d'accueil » pour une icône comme une vraie appli.
+
+**3. Sans Wi-Fi de tournoi fiable** : le PC peut créer son propre point d'accès
+Wi-Fi (hotspot), et tout le monde (y compris le PC lui-même, si besoin)
+s'y connecte à la place — ça reste un seul réseau, un seul PC-relais.
+
+⚠️ **Limite connue** : la connexion se fait en HTTP simple (pas HTTPS) sur le
+réseau local — quelqu'un qui écoute activement ce même réseau pourrait
+intercepter un mot de passe ou une session. Sur un Wi-Fi de tournoi partagé,
+c'est un risque réel mais faible (ça demande un attaquant actif sur le même
+réseau, pas juste quelqu'un « à portée »). Passer en HTTPS demanderait de
+gérer des certificats — pas fait pour l'instant.
+
+⚠️ **Portée Bluetooth** : le PC doit rester physiquement à portée BLE de
+chaque caméra (environ 10-30 m selon les obstacles) pendant tout
+l'enregistrement — ça ne se contourne pas par le Wi-Fi. Si les terrains sont
+trop éloignés pour qu'un seul PC les couvre tous, il en faudra plusieurs
+(chacun avec sa propre config/comptes) ; à valider sur le terrain.
+
 ## Démo sans matériel (mode simulation)
 
 Des caméras virtuelles remplacent le vrai matériel — utile pour l'interface et
@@ -67,6 +116,7 @@ python test_simulator.py    # caméra simulée
 python test_connection.py   # connexion + reconnexion auto « erreur proof »
 python test_manager.py      # gestion multi-caméras
 python test_updater.py      # mise à jour automatique (manifeste + zip)
+python test_auth.py         # comptes/sessions (hachage, rôles, expiration)
 ```
 
 Aucune dépendance externe : tout utilise la bibliothèque standard de Python 3.
@@ -147,8 +197,10 @@ commande équivalente sur un vrai Mac quand tu en auras un.
 
 ```
 launcher.py            <- racine, ne change quasiment jamais (mises à jour + démarrage)
-cameras.json            <- config, survit aux mises à jour
-update_config.json      <- config (URL du manifeste), survit aux mises à jour
+manage_users.py          <- racine, CLI pour gérer les comptes (users.json)
+cameras.json             <- config, survit aux mises à jour
+users.json               <- comptes (mots de passe hachés), survit aux mises à jour
+update_config.json       <- config (URL du manifeste), survit aux mises à jour
 app/                     <- REMPLACÉ à chaque mise à jour
   app.py                    point d'entrée (assemble tout)
   osmo_controller/          voir tableau ci-dessous
@@ -164,7 +216,8 @@ app/                     <- REMPLACÉ à chaque mise à jour
 | `bleak_transport.py` | Vrai transport BLE (`bleak`), implémente la même interface `Transport` |
 | `manager.py` | Gestion **multi-caméras** (contrôle par caméra + global) |
 | `camera_admin.py` / `config.py` | Scan/ajout/retrait de caméras depuis l'UI + persistance `cameras.json` |
-| `webserver.py` | Serveur web local (pont navigateur ↔ asyncio) |
+| `webserver.py` | Serveur web local (pont navigateur ↔ asyncio), routes protégées par session |
+| `auth.py` | Comptes (hachage PBKDF2), rôles admin/operator, sessions en mémoire |
 | `updater.py` | Mise à jour automatique (manifeste, téléchargement, échange de dossiers) |
 
 Le découplage clé : `connection.py` parle à une interface `Transport`
@@ -182,13 +235,16 @@ matériel — le reste de la pile ne change pas selon le transport utilisé.
   traitées comme de simples identifiants opaques). Reste à **valider sur une
   vraie machine Mac + vraie caméra** (aucun Mac disponible pour l'instant) :
   connexion, statut en direct, enregistrement, déconnexion propre.
-- **Mise à jour automatique** : le mécanisme est écrit et branché
-  (`launcher.py`), reste à créer le dépôt GitHub et y publier manifeste + zip
-  (voir section « Mise à jour automatique » ci-dessus).
+- **Mise à jour automatique** : FAIT et branché (`launcher.py`), dépôt GitHub
+  public en place et vérifié en conditions réelles (voir section ci-dessus).
 - **Packaging** : `.exe` Windows fait et vérifié (voir section ci-dessus,
   `build_launcher.bat`). `.app` macOS : pas faisable sans un vrai Mac.
+- **Accès iPad + comptes** : FAIT (voir section « Accès depuis un iPad »
+  ci-dessus) — relais Wi-Fi vers le PC, comptes admin/operator, testé (curl +
+  navigateur) : connexion, restrictions de rôle (403 pour un operator qui
+  tente scan/quit), déconnexion, session expirée. **Reste à valider en
+  vrai tournoi** : portée BLE d'un PC pour plusieurs terrains (peut-être
+  plusieurs PC nécessaires), fiabilité du hotspot si le Wi-Fi du lieu manque.
 - **Vérification du cadrage (aperçu vidéo)** : mise en pause (bouton « à venir »,
   désactivé). Le flux vidéo sans fil (RTMP par WiFi) demande un gros travail de
   reverse-engineering non résolu ; à reprendre plus tard.
-- **Appli iPad** : Python/bleak ne fonctionne pas sur iOS — à discuter (piste
-  envisagée : relais réseau plutôt qu'une appli Swift native).

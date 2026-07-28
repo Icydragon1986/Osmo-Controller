@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connexion — Osmo Controller</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="login-body">
+  <div class="login-box">
+    <div class="brand login-brand">
+      <span class="logo">●</span>
+      <div>
+        <h1>Osmo Controller</h1>
+        <p class="subtitle">Boccia Canada — connexion</p>
+      </div>
+    </div>
+
+    <form id="login-form">
+      <label class="login-label" for="username">Nom d'utilisateur</label>
+      <input id="username" name="username" autocomplete="username" autofocus required>
+
+      <label class="login-label" for="password">Mot de passe</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+      <button id="login-btn" class="btn btn-rec login-submit" type="submit">Se connecter</button>
+      <p id="login-error" class="login-error" hidden></p>
+    </form>
+  </div>
+
+  <script src="/login.js"></script>
+</body>
+</html>

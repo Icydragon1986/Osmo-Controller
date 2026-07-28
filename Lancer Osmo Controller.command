@@ -12,12 +12,13 @@ fi
 
 echo
 echo "  Demarrage d'Osmo Controller (cameras reelles)..."
-echo "  L'interface va s'ouvrir dans ton navigateur."
+echo "  L'interface va s'ouvrir dans ton navigateur, et sera accessible"
+echo "  depuis d'autres appareils (iPad, telephone) sur le meme Wi-Fi."
 echo
 echo "  *** Pour QUITTER : clique le bouton \"Quitter\" dans le navigateur. ***"
 echo
 
-python3 launcher.py --real
+python3 launcher.py --real --host 0.0.0.0
 
 echo
 echo "  Osmo Controller est ferme. Tu peux fermer cette fenetre."

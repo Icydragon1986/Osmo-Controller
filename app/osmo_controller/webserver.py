@@ -15,17 +15,23 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from . import auth
 from .manager import CameraManager
 from .version import VERSION
 
 _WEBUI_DIR = Path(__file__).resolve().parent.parent / "webui"
 
+# Actions qui touchent la config partagée (caméras) ou ferment l'app pour
+# TOUT LE MONDE : réservées au rôle admin.
+_ADMIN_ONLY_ACTIONS = {"scan", "add_camera", "remove_camera", "quit"}
+
 
 def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
-                 admin=None, on_quit=None):
+                 admin=None, on_quit=None, users_path=None, sessions=None):
     class Handler(BaseHTTPRequestHandler):
         # HTTP/1.1 => connexions persistantes (keep-alive) : bien plus réactif
         # que le 1.0 par défaut, qui rouvre une connexion TCP à chaque clic.
@@ -43,11 +49,13 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
             self.send_header("Pragma", "no-cache")
             self.send_header("Expires", "0")
 
-        def _send_json(self, obj, code=200):
+        def _send_json(self, obj, code=200, extra_headers=()):
             body = json.dumps(obj).encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            for name, value in extra_headers:
+                self.send_header(name, value)
             self._no_cache()
             self.end_headers()
             self.wfile.write(body)
@@ -65,33 +73,121 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
             self.end_headers()
             self.wfile.write(data)
 
+        def _redirect(self, location: str):
+            self.send_response(302)
+            self.send_header("Location", location)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        # -- auth -------------------------------------------------------- #
+        def _session_token(self):
+            cookie_header = self.headers.get("Cookie")
+            if not cookie_header:
+                return None
+            jar = SimpleCookie()
+            jar.load(cookie_header)
+            morsel = jar.get("session")
+            return morsel.value if morsel else None
+
+        def _session(self):
+            return sessions.get(self._session_token())
+
+        def _read_json_body(self):
+            length = int(self.headers.get("Content-Length", 0))
+            return json.loads(self.rfile.read(length) or b"{}")
+
+        def _handle_login(self):
+            try:
+                req = self._read_json_body()
+            except json.JSONDecodeError:
+                self._send_json({"ok": False, "error": "JSON invalide"}, 400)
+                return
+            username = (req.get("username") or "").strip()
+            role = auth.authenticate(users_path, username, req.get("password") or "")
+            if role is None:
+                self._send_json({"ok": False, "error": "identifiants invalides"}, 401)
+                return
+            token = sessions.create(username, role)
+            self._send_json(
+                {"ok": True, "username": username, "role": role}, 200,
+                extra_headers=[("Set-Cookie", f"session={token}; Path=/; HttpOnly; SameSite=Lax")],
+            )
+
+        def _handle_logout(self):
+            sessions.delete(self._session_token())
+            self._send_json(
+                {"ok": True}, 200,
+                extra_headers=[("Set-Cookie", "session=deleted; Path=/; Max-Age=0")],
+            )
+
         # -- routes ---------------------------------------------------- #
         def do_GET(self):
-            if self.path in ("/", "/index.html"):
-                self._send_file(_WEBUI_DIR / "index.html", "text/html; charset=utf-8")
-            elif self.path == "/app.js":
-                self._send_file(_WEBUI_DIR / "app.js", "application/javascript; charset=utf-8")
-            elif self.path == "/style.css":
+            # Public : la page de connexion et les fichiers statiques partagés.
+            if self.path in ("/login", "/login.html"):
+                self._send_file(_WEBUI_DIR / "login.html", "text/html; charset=utf-8")
+                return
+            if self.path == "/login.js":
+                self._send_file(_WEBUI_DIR / "login.js", "application/javascript; charset=utf-8")
+                return
+            if self.path == "/style.css":
                 self._send_file(_WEBUI_DIR / "style.css", "text/css; charset=utf-8")
-            elif self.path == "/api/state":
-                self._send_json({"version": VERSION, "manageable": admin is not None,
-                                 "cameras": manager.snapshot()})
-            else:
-                self.send_error(404, "Route inconnue")
+                return
+            if self.path == "/app.js":
+                self._send_file(_WEBUI_DIR / "app.js", "application/javascript; charset=utf-8")
+                return
+
+            # Protégé : le tableau de bord et son état ont besoin d'une session.
+            session = self._session()
+            if self.path in ("/", "/index.html"):
+                if session is None:
+                    self._redirect("/login")
+                    return
+                self._send_file(_WEBUI_DIR / "index.html", "text/html; charset=utf-8")
+                return
+            if self.path == "/api/state":
+                if session is None:
+                    self._send_json({"ok": False, "error": "non authentifié"}, 401)
+                    return
+                username, role = session
+                self._send_json({
+                    "version": VERSION,
+                    "manageable": admin is not None and role == "admin",
+                    "username": username, "role": role,
+                    "cameras": manager.snapshot(),
+                })
+                return
+            self.send_error(404, "Route inconnue")
 
         def do_POST(self):
+            if self.path == "/api/login":
+                self._handle_login()
+                return
+            if self.path == "/api/logout":
+                self._handle_logout()
+                return
             if self.path != "/api/command":
                 self.send_error(404, "Route inconnue")
                 return
-            length = int(self.headers.get("Content-Length", 0))
+
+            session = self._session()
+            if session is None:
+                self._send_json({"ok": False, "error": "non authentifié"}, 401)
+                return
+            _username, role = session
+
             try:
-                req = json.loads(self.rfile.read(length) or b"{}")
+                req = self._read_json_body()
             except json.JSONDecodeError:
                 self._send_json({"ok": False, "error": "JSON invalide"}, 400)
                 return
 
+            action = req.get("action")
+            if action in _ADMIN_ONLY_ACTIONS and role != "admin":
+                self._send_json({"ok": False, "error": "réservé aux comptes admin"}, 403)
+                return
+
             # Quitter : arrêt propre (déconnecte les caméras puis ferme l'app).
-            if req.get("action") == "quit":
+            if action == "quit":
                 self._send_json({"ok": True})
                 print("« Quitter » reçu — arrêt propre en cours…")
                 if on_quit is not None:
@@ -103,7 +199,7 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                 self._send_json({"ok": False, "error": "action inconnue"}, 400)
                 return
             # Le scan BLE prend quelques secondes : timeout plus large pour lui.
-            timeout = 25 if req.get("action") == "scan" else 12
+            timeout = 25 if action == "scan" else 12
             try:
                 fut = asyncio.run_coroutine_threadsafe(coro, loop)
                 result = fut.result(timeout=timeout)
@@ -139,10 +235,11 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
 
 
 def start_in_thread(manager: CameraManager, loop: asyncio.AbstractEventLoop,
-                    admin=None, on_quit=None,
+                    admin=None, on_quit=None, users_path=None,
                     host: str = "127.0.0.1", port: int = 8765):
     """Démarre le serveur dans un thread démon. Renvoie (server, thread, url)."""
-    handler = make_handler(manager, loop, admin, on_quit)
+    sessions = auth.SessionStore()
+    handler = make_handler(manager, loop, admin, on_quit, users_path, sessions)
     server = ThreadingHTTPServer((host, port), handler)
     server.daemon_threads = True   # les requêtes en cours ne bloquent pas la fermeture
     thread = threading.Thread(target=server.serve_forever, daemon=True)

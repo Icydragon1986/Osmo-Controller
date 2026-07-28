@@ -90,8 +90,8 @@ def build_real_manager(config_path: Path) -> CameraManager:
     return mgr
 
 
-async def main(mgr: CameraManager, port: int, open_browser: bool, label: str,
-               admin=None) -> None:
+async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, label: str,
+               admin=None, users_path=None) -> None:
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
 
@@ -110,7 +110,8 @@ async def main(mgr: CameraManager, port: int, open_browser: bool, label: str,
 
     try:
         server, _thread, url = webserver.start_in_thread(
-            mgr, loop, admin=admin, on_quit=request_stop, port=port)
+            mgr, loop, admin=admin, on_quit=request_stop,
+            users_path=users_path, host=host, port=port)
     except OSError as e:
         print(f"\nImpossible de démarrer sur le port {port} : {e}")
         print(f"Ce port est peut-être utilisé par un autre programme.")
@@ -121,6 +122,8 @@ async def main(mgr: CameraManager, port: int, open_browser: bool, label: str,
     print(f"  Osmo Controller — {label}")
     print(f"  {len(mgr.names)} caméra(s)")
     print(f"  Interface : {url}")
+    if host != "127.0.0.1":
+        print(f"  Accessible depuis le Wi-Fi local — connexion (compte) requise.")
     print("  Quitte avec le bouton « Quitter » de l'interface, ou Ctrl+C.")
     print("=" * 56)
     if open_browser:
@@ -152,6 +155,9 @@ def run(argv=None) -> int:
                          "à côté de launcher.py — pas dans app/)")
     ap.add_argument("--cameras", type=int, default=3,
                     help="nombre de terrains simulés (mode simulation)")
+    ap.add_argument("--host", default="127.0.0.1",
+                    help="adresse d'écoute (127.0.0.1 = ce PC seulement ; "
+                         "0.0.0.0 = accessible depuis le Wi-Fi local, ex. iPad)")
     ap.add_argument("--port", type=int, default=8765, help="port HTTP local")
     ap.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
     args = ap.parse_args(argv)
@@ -166,11 +172,19 @@ def run(argv=None) -> int:
             webbrowser.open(url)
         return 0
 
+    # Racine du dépôt = parent de app/ (où vit ce fichier) : users.json et
+    # cameras.json doivent survivre aux mises à jour, qui remplacent app/ seul.
+    root = Path(__file__).resolve().parent.parent
+    users_path = root / "users.json"
+    if not users_path.exists():
+        users_path.write_text("{}\n", encoding="utf-8")
+    if not json.loads(users_path.read_text(encoding="utf-8")):
+        print("⚠ Aucun compte configuré — personne ne pourra se connecter.")
+        print('  Crée-en un :  python manage_users.py add <nom> <mot de passe> --role admin')
+
     admin = None
     if args.real:
-        # Racine du dépôt = parent de app/ (où vit ce fichier) : cameras.json
-        # doit survivre aux mises à jour, qui remplacent seulement app/.
-        default_cfg = Path(__file__).resolve().parent.parent / "cameras.json"
+        default_cfg = root / "cameras.json"
         cfg = Path(args.config) if args.config else default_cfg
         if not cfg.exists():                    # config absente : on démarre vide,
             cfg.write_text("[]\n", encoding="utf-8")  # tu ajoutes les caméras dans l'UI
@@ -185,7 +199,8 @@ def run(argv=None) -> int:
         label = "MODE SIMULATION"
 
     try:
-        asyncio.run(main(manager, args.port, not args.no_browser, label, admin=admin))
+        asyncio.run(main(manager, args.host, args.port, not args.no_browser, label,
+                         admin=admin, users_path=users_path))
     except KeyboardInterrupt:
         print("\nArrêt demandé. À bientôt !")
     # IMPORTANT : on laisse le processus se terminer NORMALEMENT (pas d'os._exit).

@@ -273,3 +273,34 @@ main { padding: 26px; max-width: 1200px; margin: 0 auto; }
 .footer .dot.ok { background: var(--ok); }
 .footer .sep { opacity: .5; }
 .muted { color: var(--muted); }
+
+/* ---------- Connexion ---------- */
+.login-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-box {
+  width: min(360px, 92vw);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px 26px;
+}
+.login-brand { margin-bottom: 22px; }
+.login-label {
+  display: block; font-size: 12.5px; color: var(--muted);
+  margin: 14px 0 6px;
+}
+#login-form input {
+  width: 100%; background: var(--bg-card-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; font-size: 14px;
+}
+.login-submit { width: 100%; margin-top: 20px; padding: 11px; font-size: 14px; }
+.login-error {
+  margin: 14px 0 0; color: #ff9a9a; font-size: 13px; text-align: center;
+}
+.login-error[hidden] { display: none; }

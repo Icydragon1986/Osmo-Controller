@@ -19,6 +19,8 @@ const emptyMsg = document.getElementById("empty");
 const summary = document.getElementById("summary");
 const connDot = document.getElementById("conn-dot");
 const connText = document.getElementById("conn-text");
+const quitBtn = document.getElementById("quit");
+const whoamiEl = document.getElementById("whoami");
 
 const cards = new Map();           // nom -> élément DOM
 const lastData = new Map();        // nom -> dernier état serveur connu
@@ -115,11 +117,12 @@ function tempClass(t) {
 
 async function postCommand(action, camera) {
   try {
-    await fetch("/api/command", {
+    const r = await fetch("/api/command", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, camera }),
     });
+    if (r.status === 401) { window.location.href = "/login"; return; }
   } catch (e) {
     console.error("commande échouée", e);
   }
@@ -406,10 +409,13 @@ async function refresh() {
   refreshing = true;
   try {
     const r = await fetch("/api/state");
+    if (r.status === 401) { window.location.href = "/login"; return; }
     const data = await r.json();
     render(data.cameras || []);
     if (data.version && versionEl) versionEl.textContent = "v" + data.version + " · " + APP_VERSION;
     manageBtn.hidden = !data.manageable;
+    quitBtn.hidden = data.role !== "admin";   // quitter ferme l'app pour tout le monde : admin seulement
+    if (whoamiEl && data.username) whoamiEl.textContent = `${data.username} (${data.role})`;
     if (!modal.hidden) renderManageList();     // garde la liste de la modale à jour
     connDot.classList.add("ok");
     connText.textContent = "Serveur connecté";
@@ -531,6 +537,14 @@ function renderScan(devices) {
     results.appendChild(el);
   }
 }
+
+// --- déconnexion ----------------------------------------------------- //
+document.getElementById("logout").addEventListener("click", async () => {
+  try {
+    await fetch("/api/logout", { method: "POST" });
+  } catch (e) { /* on redirige quand même */ }
+  window.location.href = "/login";
+});
 
 // --- bouton Quitter (arrêt propre) --------------------------------- //
 document.getElementById("quit").addEventListener("click", async () => {
