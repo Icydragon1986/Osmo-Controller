@@ -450,22 +450,47 @@ async function openConnect() {
       return;
     }
     list.innerHTML = "";
-    for (const item of data.items) {
-      const el = document.createElement("div");
-      el.className = "connect-item";
-      const qr = document.createElement("div");
-      qr.className = "qr";
-      qr.innerHTML = item.qr_svg;
-      const url = document.createElement("div");
-      url.className = "url";
-      url.textContent = item.url;
-      el.appendChild(qr);
-      el.appendChild(url);
-      list.appendChild(el);
+
+    if (data.wifi) {
+      const step = document.createElement("p");
+      step.className = "muted";
+      step.textContent = "1. Rejoindre le Wi-Fi (scanner avec l'appareil photo, pas Safari) :";
+      list.appendChild(step);
+      const wifiRow = document.createElement("div");
+      wifiRow.className = "connect-list";
+      const el = makeConnectItem(data.wifi.qr_svg, data.wifi.ssid);
+      wifiRow.appendChild(el);
+      list.appendChild(wifiRow);
+
+      const step2 = document.createElement("p");
+      step2.className = "muted";
+      step2.textContent = "2. Ouvrir la page (avec Safari) :";
+      list.appendChild(step2);
     }
+
+    const urlRow = document.createElement("div");
+    urlRow.className = "connect-list";
+    for (const item of data.items) {
+      urlRow.appendChild(makeConnectItem(item.qr_svg, item.url));
+    }
+    list.appendChild(urlRow);
   } catch (e) {
     list.innerHTML = '<div class="connect-empty">Impossible de récupérer les adresses.</div>';
   }
+}
+
+function makeConnectItem(qrSvg, label) {
+  const el = document.createElement("div");
+  el.className = "connect-item";
+  const qr = document.createElement("div");
+  qr.className = "qr";
+  qr.innerHTML = qrSvg;
+  const text = document.createElement("div");
+  text.className = "url";
+  text.textContent = label;
+  el.appendChild(qr);
+  el.appendChild(text);
+  return el;
 }
 
 // --- gestion des caméras (modale) ---------------------------------- //

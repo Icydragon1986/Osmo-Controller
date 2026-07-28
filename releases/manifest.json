@@ -1,6 +1,6 @@
 {
-  "version": "0.12.0",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.12.0.zip",
-  "sha256": "bcd4c41783f1e75b375b7d1b4eed177d4a2a966fb3496771bced35a017e95caf",
-  "notes": "Bouton Connexion iPad avec code QR (pip install qrcode, optionnel)."
+  "version": "0.13.0",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.13.0.zip",
+  "sha256": "d35889b94bc0292fef57a637ab0924ea277bd0e4cd749626e6b778fe6d57c2b6",
+  "notes": "QR Wi-Fi (rejoindre le reseau automatiquement) en plus du QR de page ; correction du traceback de deconnexion brutale."
 }

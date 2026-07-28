@@ -73,10 +73,28 @@ tape-la dans Safari sur l'iPad, puis « Ajouter à l'écran d'accueil » pour un
 icône comme une vraie appli.
 
 **3. Encore plus simple : le bouton « 📶 Connexion iPad »** — une fois connecté
-sur le PC, ce bouton affiche un **code QR par adresse détectée** : pointe la
-caméra de l'iPad dessus, Safari s'ouvre directement sur la bonne page, sans
-taper d'adresse. Nécessite `pip install qrcode` sur le PC (sinon le reste de
-l'app fonctionne quand même, juste sans ce bouton).
+sur le PC, ce bouton affiche :
+- un code QR **« rejoindre le Wi-Fi »** (format `WIFI:`, reconnu par
+  l'appareil photo native d'iOS/Android — pas besoin de Safari pour celui-là) ;
+- puis un code QR **par adresse réseau détectée** pour ouvrir la page.
+
+Scanner les deux, dans l'ordre, connecte l'iPad sans jamais taper une adresse
+ni un mot de passe Wi-Fi à la main. Nécessite `pip install qrcode` sur le PC
+(sinon le reste de l'app fonctionne quand même, juste sans ce bouton).
+
+Le QR Wi-Fi vient de deux sources :
+- **Wi-Fi normal du lieu** : détecté **automatiquement** (Windows sait déjà
+  s'y connecter, `netsh` peut relire son mot de passe) — rien à configurer.
+- **Point d'accès (hotspot) du PC** : Windows ne permet PAS de lire son
+  SSID/mot de passe par programme (aucune API ne l'expose), donc entre-le
+  une fois :
+  ```bash
+  python manage_wifi.py set MonHotspot motdepasse123
+  python manage_wifi.py show
+  python manage_wifi.py clear
+  ```
+  Cette config manuelle (si présente) est **prioritaire** sur la détection
+  automatique.
 
 **4. Sans Wi-Fi de tournoi fiable** : le PC peut créer son propre point d'accès
 Wi-Fi (hotspot), sans avoir besoin d'internet — c'est un réseau local comme un
@@ -131,6 +149,7 @@ python test_connection.py   # connexion + reconnexion auto « erreur proof »
 python test_manager.py      # gestion multi-caméras
 python test_updater.py      # mise à jour automatique (manifeste + zip)
 python test_auth.py         # comptes/sessions (hachage, rôles, expiration)
+python test_wifi_info.py    # code QR Wi-Fi (format, échappement, détection)
 ```
 
 Aucune dépendance externe : tout utilise la bibliothèque standard de Python 3.
@@ -212,8 +231,10 @@ commande équivalente sur un vrai Mac quand tu en auras un.
 ```
 launcher.py            <- racine, ne change quasiment jamais (mises à jour + démarrage)
 manage_users.py          <- racine, CLI pour gérer les comptes (users.json)
+manage_wifi.py           <- racine, CLI pour la config Wi-Fi du hotspot (wifi_config.json)
 cameras.json             <- config, survit aux mises à jour
 users.json               <- comptes (mots de passe hachés), survit aux mises à jour
+wifi_config.json         <- config Wi-Fi hotspot (optionnelle), survit aux mises à jour
 update_config.json       <- config (URL du manifeste), survit aux mises à jour
 app/                     <- REMPLACÉ à chaque mise à jour
   app.py                    point d'entrée (assemble tout)
@@ -232,6 +253,7 @@ app/                     <- REMPLACÉ à chaque mise à jour
 | `camera_admin.py` / `config.py` | Scan/ajout/retrait de caméras depuis l'UI + persistance `cameras.json` |
 | `webserver.py` | Serveur web local (pont navigateur ↔ asyncio), routes protégées par session |
 | `auth.py` | Comptes (hachage PBKDF2), rôles admin/operator, sessions en mémoire |
+| `wifi_info.py` | Détection/config Wi-Fi + génération du payload QR `WIFI:` |
 | `updater.py` | Mise à jour automatique (manifeste, téléchargement, échange de dossiers) |
 
 Le découplage clé : `connection.py` parle à une interface `Transport`

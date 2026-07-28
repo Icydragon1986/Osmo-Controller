@@ -19,12 +19,14 @@ import asyncio
 import io
 import json
 import socket
+import sys
 import threading
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import auth
+from . import wifi_info
 from .manager import CameraManager
 from .version import VERSION
 
@@ -67,7 +69,8 @@ _ADMIN_ONLY_ACTIONS = {"scan", "add_camera", "remove_camera", "quit"}
 
 
 def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
-                 admin=None, on_quit=None, users_path=None, sessions=None, port=8765):
+                 admin=None, on_quit=None, users_path=None, sessions=None, port=8765,
+                 wifi_config_path=None):
     class Handler(BaseHTTPRequestHandler):
         # HTTP/1.1 => connexions persistantes (keep-alive) : bien plus réactif
         # que le 1.0 par défaut, qui rouvre une connexion TCP à chaque clic.
@@ -199,11 +202,15 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                 urls = local_network_urls(port)
                 try:
                     items = [{"url": u, "qr_svg": _qr_svg(u)} for u in urls]
+                    wifi = wifi_info.current_wifi(wifi_config_path) if wifi_config_path else None
+                    wifi_item = ({"ssid": wifi["ssid"],
+                                 "qr_svg": _qr_svg(wifi_info.wifi_qr_payload(wifi["ssid"], wifi["password"]))}
+                                if wifi else None)
                 except ImportError:
                     self._send_json({"ok": False,
                                      "error": "code QR indisponible (pip install qrcode)"}, 500)
                     return
-                self._send_json({"ok": True, "items": items})
+                self._send_json({"ok": True, "items": items, "wifi": wifi_item})
                 return
             self.send_error(404, "Route inconnue")
 
@@ -283,13 +290,28 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
     return Handler
 
 
+# Un appareil (iPad, téléphone) qui ferme sa connexion brutalement — perte de
+# Wi-Fi, mise en veille, ou arrêt du serveur pendant qu'il pollait /api/state
+# — est NORMAL, pas une erreur : on l'ignore plutôt que d'afficher une trace
+# qui donne l'impression que quelque chose a planté.
+_QUIET_ERRORS = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
+
+
+class _QuietThreadingHTTPServer(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        if sys.exc_info()[0] in _QUIET_ERRORS:
+            return
+        super().handle_error(request, client_address)
+
+
 def start_in_thread(manager: CameraManager, loop: asyncio.AbstractEventLoop,
-                    admin=None, on_quit=None, users_path=None,
+                    admin=None, on_quit=None, users_path=None, wifi_config_path=None,
                     host: str = "127.0.0.1", port: int = 8765):
     """Démarre le serveur dans un thread démon. Renvoie (server, thread, url)."""
     sessions = auth.SessionStore()
-    handler = make_handler(manager, loop, admin, on_quit, users_path, sessions, port=port)
-    server = ThreadingHTTPServer((host, port), handler)
+    handler = make_handler(manager, loop, admin, on_quit, users_path, sessions,
+                           port=port, wifi_config_path=wifi_config_path)
+    server = _QuietThreadingHTTPServer((host, port), handler)
     server.daemon_threads = True   # les requêtes en cours ne bloquent pas la fermeture
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

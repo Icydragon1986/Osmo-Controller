@@ -5,3 +5,4 @@ dist/
 *.spec
 .claude/
 users.json
+wifi_config.json

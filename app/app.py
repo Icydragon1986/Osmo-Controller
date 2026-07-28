@@ -92,7 +92,7 @@ def build_real_manager(config_path: Path) -> CameraManager:
 
 
 async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, label: str,
-               admin=None, users_path=None) -> None:
+               admin=None, users_path=None, wifi_config_path=None) -> None:
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
 
@@ -112,7 +112,7 @@ async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
     try:
         server, _thread, _url = webserver.start_in_thread(
             mgr, loop, admin=admin, on_quit=request_stop,
-            users_path=users_path, host=host, port=port)
+            users_path=users_path, wifi_config_path=wifi_config_path, host=host, port=port)
     except OSError as e:
         print(f"\nImpossible de démarrer sur le port {port} : {e}")
         print(f"Ce port est peut-être utilisé par un autre programme.")
@@ -186,9 +186,11 @@ def run(argv=None) -> int:
             webbrowser.open(url)
         return 0
 
-    # Racine du dépôt = parent de app/ (où vit ce fichier) : users.json et
-    # cameras.json doivent survivre aux mises à jour, qui remplacent app/ seul.
+    # Racine du dépôt = parent de app/ (où vit ce fichier) : users.json,
+    # cameras.json et wifi_config.json doivent survivre aux mises à jour,
+    # qui remplacent app/ seul.
     root = Path(__file__).resolve().parent.parent
+    wifi_config_path = root / "wifi_config.json"
     users_path = root / "users.json"
     if not users_path.exists():
         users_path.write_text("{}\n", encoding="utf-8")
@@ -214,7 +216,7 @@ def run(argv=None) -> int:
 
     try:
         asyncio.run(main(manager, args.host, args.port, not args.no_browser, label,
-                         admin=admin, users_path=users_path))
+                         admin=admin, users_path=users_path, wifi_config_path=wifi_config_path))
     except KeyboardInterrupt:
         print("\nArrêt demandé. À bientôt !")
     # IMPORTANT : on laisse le processus se terminer NORMALEMENT (pas d'os._exit).
