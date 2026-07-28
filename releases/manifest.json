@@ -1,6 +1,6 @@
 {
-  "version": "0.11.0",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.11.0.zip",
-  "sha256": "09d8029bbbabfc750709e4b49652f173f014f5bbad662afc6e9dd71e72886004",
-  "notes": "Accès LAN avec comptes (admin/operator) pour contrôle depuis iPad et autres appareils sur le même Wi-Fi."
+  "version": "0.11.1",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.11.1.zip",
+  "sha256": "1bcc1d41ca823982fc767b74e2c06d8ce4527651e6e9adb7d878087a56bdc378",
+  "notes": "Corrige le bouton reseau (0.0.0.0 n est pas une adresse a laquelle se connecter) : le PC affiche maintenant les vraies IP a utiliser depuis un iPad/telephone."
 }

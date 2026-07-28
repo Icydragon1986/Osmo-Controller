@@ -29,6 +29,7 @@ import argparse
 import asyncio
 import json
 import signal
+import socket
 import webbrowser
 from pathlib import Path
 
@@ -59,6 +60,22 @@ def build_simulated_manager(n: int) -> CameraManager:
         )
         mgr.add_camera(f"Terrain {i}", transport)
     return mgr
+
+
+def _lan_ips() -> list[str]:
+    """Adresses IPv4 locales (hors loopback) — pour dire quoi taper sur l'iPad.
+
+    Une machine peut avoir plusieurs adresses (Wi-Fi, VPN…) : on les liste
+    toutes plutôt que de deviner, à essayer une par une si besoin."""
+    ips = set()
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ip = info[4][0]
+            if not ip.startswith("127."):
+                ips.add(ip)
+    except OSError:
+        pass
+    return sorted(ips)
 
 
 def already_running(port: int) -> bool:
@@ -109,7 +126,7 @@ async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
                 pass   # certains signaux ne sont pas réglables selon la plateforme
 
     try:
-        server, _thread, url = webserver.start_in_thread(
+        server, _thread, _url = webserver.start_in_thread(
             mgr, loop, admin=admin, on_quit=request_stop,
             users_path=users_path, host=host, port=port)
     except OSError as e:
@@ -118,16 +135,29 @@ async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
         print(f"Réessaie avec un autre port, ex :  python app.py --real --port 8766")
         return
     mgr.start_all()
+    # Ouvrir le navigateur SUR CETTE MACHINE se fait toujours via 127.0.0.1,
+    # même si le serveur écoute sur 0.0.0.0 (qui n'est pas une adresse à
+    # laquelle se connecter, juste « toutes les interfaces »).
+    local_url = f"http://127.0.0.1:{port}/"
     print("=" * 56)
     print(f"  Osmo Controller — {label}")
     print(f"  {len(mgr.names)} caméra(s)")
-    print(f"  Interface : {url}")
+    print(f"  Interface (ce PC) : {local_url}")
     if host != "127.0.0.1":
-        print(f"  Accessible depuis le Wi-Fi local — connexion (compte) requise.")
+        ips = _lan_ips()
+        if ips:
+            print(f"  Depuis un iPad/téléphone sur le même Wi-Fi, ouvre :")
+            for ip in ips:
+                print(f"    http://{ip}:{port}/")
+        else:
+            print(f"  Accessible depuis le Wi-Fi local, mais l'adresse IP n'a "
+                  f"pas pu être détectée automatiquement — cherche-la avec "
+                  f"'ipconfig' (Windows) ou 'ifconfig' (Mac).")
+        print(f"  Connexion (compte) requise dans les deux cas.")
     print("  Quitte avec le bouton « Quitter » de l'interface, ou Ctrl+C.")
     print("=" * 56)
     if open_browser:
-        webbrowser.open(url)
+        webbrowser.open(local_url)
 
     try:
         await stop_event.wait()
