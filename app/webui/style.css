@@ -259,6 +259,12 @@ main { padding: 26px; max-width: 1200px; margin: 0 auto; }
 .connect-item .url { font-size: 12px; color: var(--text); text-align: center; word-break: break-all; }
 .connect-empty { color: var(--muted); font-size: 13px; text-align: center; margin-top: 10px; }
 
+.hotspot-box {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--bg-card-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 6px; font-size: 13.5px;
+}
+
 .scan-results { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .scan-item {
   display: flex; align-items: center; gap: 10px;

@@ -1,6 +1,6 @@
 {
-  "version": "0.13.0",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.13.0.zip",
-  "sha256": "d35889b94bc0292fef57a637ab0924ea277bd0e4cd749626e6b778fe6d57c2b6",
-  "notes": "QR Wi-Fi (rejoindre le reseau automatiquement) en plus du QR de page ; correction du traceback de deconnexion brutale."
+  "version": "0.14.0",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.14.0.zip",
+  "sha256": "ab7a40fe0a2bc2febc6a620fd3efdef9ffbce42cf0494e09818360062b425687",
+  "notes": "Demarrer/arreter le hotspot du PC directement depuis l app (Windows), verifie sur materiel reel."
 }

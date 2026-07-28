@@ -82,21 +82,37 @@ Scanner les deux, dans l'ordre, connecte l'iPad sans jamais taper une adresse
 ni un mot de passe Wi-Fi à la main. Nécessite `pip install qrcode` sur le PC
 (sinon le reste de l'app fonctionne quand même, juste sans ce bouton).
 
-Le QR Wi-Fi vient de deux sources :
-- **Wi-Fi normal du lieu** : détecté **automatiquement** (Windows sait déjà
-  s'y connecter, `netsh` peut relire son mot de passe) — rien à configurer.
-- **Point d'accès (hotspot) du PC** : Windows ne permet PAS de lire son
-  SSID/mot de passe par programme (aucune API ne l'expose), donc entre-le
-  une fois :
-  ```bash
-  python manage_wifi.py set MonHotspot motdepasse123
-  python manage_wifi.py show
-  python manage_wifi.py clear
-  ```
-  Cette config manuelle (si présente) est **prioritaire** sur la détection
-  automatique.
+Le QR Wi-Fi vient de trois sources, dans cet ordre de priorité :
+1. **Le point d'accès du PC, s'il est actif** (voir bouton hotspot ci-dessous)
+   — c'est la vérité du terrain, il prime sur tout le reste.
+2. **Une config manuelle** (rare, pour un cas particulier) :
+   ```bash
+   python manage_wifi.py set MonHotspot motdepasse123
+   python manage_wifi.py show
+   python manage_wifi.py clear
+   ```
+3. **Le Wi-Fi normal du lieu**, détecté automatiquement (`netsh`) s'il est connecté.
 
-**4. Sans Wi-Fi de tournoi fiable** : le PC peut créer son propre point d'accès
+**4. Encore mieux : démarrer/arrêter le point d'accès du PC depuis l'appli**
+(bouton admin dans la modale « Connexion iPad »). Contrairement à ce que je
+pensais au départ, Windows expose bien une API pour ça
+(`NetworkOperatorTetheringManager` — le paquet s'appelle
+`winrt-Windows.Networking.NetworkOperators`, au PLURIEL, une coquille de ma
+part m'avait fait croire le contraire) : le PC peut configurer, démarrer et
+arrêter son propre hotspot sans jamais ouvrir les Réglages Windows. **Vérifié
+réellement** : démarrage confirmé (adresse `192.168.137.1` active), lecture
+du SSID/mot de passe réels, arrêt propre, à répétition.
+
+```bash
+pip install "winrt-Windows.Networking.NetworkOperators" "winrt-Windows.Networking.Connectivity"
+```
+
+⚠️ Ne reconfigure pas le nom/mot de passe existant du hotspot — démarre/arrête
+juste avec ce qui est déjà défini dans Windows (Paramètres > Réseau et
+Internet > Point d'accès mobile), pour ne pas casser un mot de passe déjà
+communiqué à l'équipe. Windows seulement (pas de Mac).
+
+**5. Sans Wi-Fi de tournoi fiable** : le PC peut créer son propre point d'accès
 Wi-Fi (hotspot), sans avoir besoin d'internet — c'est un réseau local comme un
 routeur maison, les appareils s'y voient entre eux même hors ligne. Tout le
 monde (y compris le PC lui-même, si besoin) s'y connecte à la place ; ça reste
@@ -254,6 +270,7 @@ app/                     <- REMPLACÉ à chaque mise à jour
 | `webserver.py` | Serveur web local (pont navigateur ↔ asyncio), routes protégées par session |
 | `auth.py` | Comptes (hachage PBKDF2), rôles admin/operator, sessions en mémoire |
 | `wifi_info.py` | Détection/config Wi-Fi + génération du payload QR `WIFI:` |
+| `hotspot.py` | Démarrer/arrêter le point d'accès Wi-Fi du PC (Windows seulement) |
 | `updater.py` | Mise à jour automatique (manifeste, téléchargement, échange de dossiers) |
 
 Le découplage clé : `connection.py` parle à une interface `Transport`
@@ -279,13 +296,20 @@ matériel — le reste de la pile ne change pas selon le transport utilisé.
   iPad » ci-dessus) — relais Wi-Fi vers le PC, comptes admin/operator, bouton
   QR pour se connecter sans taper d'adresse. Testé (curl + navigateur réel) :
   connexion, restrictions de rôle (403 pour un operator qui tente scan/quit),
-  déconnexion, session expirée, QR scanné avec succès. Un bug trouvé par
-  Jonathan en test réel (`--host 0.0.0.0` faisait planter l'ouverture du
-  navigateur) a été corrigé. **Reste à valider en vrai tournoi** : portée BLE
-  d'un PC pour plusieurs terrains (peut-être plusieurs PC nécessaires),
-  fiabilité du hotspot si le Wi-Fi du lieu manque. Si tu reconstruis le `.exe`
-  (`build_launcher.bat`), ajoute `--collect-all qrcode` pour que le bouton QR
-  fonctionne aussi depuis l'exe (pas encore fait dans le build actuel).
+  déconnexion, session expirée, QR scanné avec succès. Deux bugs trouvés par
+  Jonathan en test réel, corrigés : `--host 0.0.0.0` faisait planter
+  l'ouverture du navigateur, et un traceback inoffensif s'affichait à la
+  déconnexion brutale d'un appareil.
+- **Hotspot du PC démarrable/arrêtable depuis l'appli** : FAIT et **vérifié
+  réellement** (démarrage confirmé, adresse `192.168.137.1` active, arrêt
+  propre, à répétition) — voir section ci-dessus. Windows seulement.
+  **Reste à valider en vrai tournoi** : portée BLE d'un PC pour plusieurs
+  terrains (peut-être plusieurs PC nécessaires), et le cas d'une machine
+  SANS AUCUNE connexion réseau du tout (testé ici avec Ethernet actif —
+  comportement non vérifié si vraiment rien n'est branché).
+  Si tu reconstruis le `.exe` (`build_launcher.bat`), ajoute
+  `--collect-all qrcode --collect-all winrt` pour que les boutons QR et
+  hotspot fonctionnent aussi depuis l'exe (pas encore fait dans le build actuel).
 - **Vérification du cadrage (aperçu vidéo)** : mise en pause (bouton « à venir »,
   désactivé). Le flux vidéo sans fil (RTMP par WiFi) demande un gros travail de
   reverse-engineering non résolu ; à reprendre plus tard.

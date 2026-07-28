@@ -63,9 +63,10 @@ def _qr_svg(data: str) -> str:
     return buf.getvalue().decode("utf-8")
 
 
-# Actions qui touchent la config partagée (caméras) ou ferment l'app pour
-# TOUT LE MONDE : réservées au rôle admin.
-_ADMIN_ONLY_ACTIONS = {"scan", "add_camera", "remove_camera", "quit"}
+# Actions qui touchent la config partagée (caméras, réseau) ou ferment l'app
+# pour TOUT LE MONDE : réservées au rôle admin.
+_ADMIN_ONLY_ACTIONS = {"scan", "add_camera", "remove_camera", "quit",
+                       "hotspot_start", "hotspot_stop"}
 
 
 def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
@@ -199,10 +200,28 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                 if session is None:
                     self._send_json({"ok": False, "error": "non authentifié"}, 401)
                     return
+                _username, role = session
+
+                hotspot_status = None
+                if role == "admin":
+                    from . import hotspot
+                    try:
+                        fut = asyncio.run_coroutine_threadsafe(hotspot.get_status(), loop)
+                        hotspot_status = fut.result(timeout=5)
+                    except Exception:  # noqa: BLE001 — indisponible (pas Windows, etc.) : pas grave
+                        hotspot_status = {"available": False}
+
                 urls = local_network_urls(port)
                 try:
                     items = [{"url": u, "qr_svg": _qr_svg(u)} for u in urls]
-                    wifi = wifi_info.current_wifi(wifi_config_path) if wifi_config_path else None
+                    # Le hotspot ACTIF a priorité (c'est la vérité du terrain) sur la
+                    # config manuelle ou la détection d'un Wi-Fi normal connecté.
+                    if hotspot_status and hotspot_status.get("on"):
+                        wifi = {"ssid": hotspot_status["ssid"], "password": hotspot_status["passphrase"]}
+                    elif wifi_config_path:
+                        wifi = wifi_info.current_wifi(wifi_config_path)
+                    else:
+                        wifi = None
                     wifi_item = ({"ssid": wifi["ssid"],
                                  "qr_svg": _qr_svg(wifi_info.wifi_qr_payload(wifi["ssid"], wifi["password"]))}
                                 if wifi else None)
@@ -210,7 +229,8 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                     self._send_json({"ok": False,
                                      "error": "code QR indisponible (pip install qrcode)"}, 500)
                     return
-                self._send_json({"ok": True, "items": items, "wifi": wifi_item})
+                self._send_json({"ok": True, "items": items, "wifi": wifi_item,
+                                 "hotspot": hotspot_status})
                 return
             self.send_error(404, "Route inconnue")
 
@@ -285,6 +305,13 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                                      req.get("model", "osmo_action_5_pro"))
                 if action == "remove_camera" and cam in manager.names:
                     return admin.remove(cam)
+            # --- point d'accès Wi-Fi (hotspot) du PC ---
+            if action == "hotspot_start":
+                from . import hotspot
+                return hotspot.start()
+            if action == "hotspot_stop":
+                from . import hotspot
+                return hotspot.stop()
             return None
 
     return Handler

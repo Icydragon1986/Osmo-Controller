@@ -451,6 +451,10 @@ async function openConnect() {
     }
     list.innerHTML = "";
 
+    if (data.hotspot && data.hotspot.available) {
+      list.appendChild(makeHotspotBox(data.hotspot));
+    }
+
     if (data.wifi) {
       const step = document.createElement("p");
       step.className = "muted";
@@ -491,6 +495,37 @@ function makeConnectItem(qrSvg, label) {
   el.appendChild(qr);
   el.appendChild(text);
   return el;
+}
+
+function makeHotspotBox(hotspot) {
+  const box = document.createElement("div");
+  box.className = "hotspot-box";
+  const info = document.createElement("div");
+  info.innerHTML = `<b>Point d'accès du PC</b> : ${hotspot.on ? "🟢 actif" : "⚫ arrêté"} ` +
+    `<span class="muted">(${hotspot.ssid})</span>`;
+  const btn = document.createElement("button");
+  btn.className = "btn" + (hotspot.on ? " btn-quit" : " btn-rec");
+  btn.textContent = hotspot.on ? "⏹ Arrêter le hotspot" : "🔥 Démarrer le hotspot";
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "…";
+    try {
+      const r = await fetch("/api/command", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: hotspot.on ? "hotspot_stop" : "hotspot_start" }),
+      });
+      const j = await r.json();
+      if (!j.ok) alert("Erreur : " + j.error);
+    } catch (e) { alert("Commande échouée."); }
+    // Petit délai : Windows met un instant à vraiment libérer/attribuer
+    // l'adresse réseau du hotspot après un démarrage/arrêt — sans ça, la
+    // liste d'adresses peut brièvement montrer une IP encore fantôme.
+    await new Promise((r) => setTimeout(r, 1200));
+    openConnect();
+  });
+  box.appendChild(info);
+  box.appendChild(btn);
+  return box;
 }
 
 // --- gestion des caméras (modale) ---------------------------------- //
