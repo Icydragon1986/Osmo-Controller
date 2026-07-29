@@ -33,7 +33,13 @@ from .connection import Transport
 _CTRL_DEVICE_ID = 0x11223344
 _CTRL_MAC = b"AA:BB:CC:DD:EE"
 
-_HANDSHAKE_TIMEOUT = 8.0
+# 8 s suffit en Python normal, mais un .app macOS empaqueté (PyInstaller
+# --windowed) sert la boucle d'événements CoreBluetooth plus lentement
+# (pas de NSApplication au premier plan) : la connexion BLE peut alors
+# prendre jusqu'à ~20 s avant d'aboutir. Une marge généreuse évite une
+# boucle connexion/timeout/reconnexion infinie qui ressemble à une panne
+# permanente alors que la caméra est bien joignable (vérifié sur matériel réel).
+_HANDSHAKE_TIMEOUT = 25.0
 
 
 class BleakTransport(Transport):
@@ -47,7 +53,16 @@ class BleakTransport(Transport):
         self._notify_cb: Optional[Callable[[bytes], None]] = None
         self._disc_cb: Optional[Callable[[], None]] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._approved = asyncio.Event()
+        # Créé dans connect() (pas ici) : un asyncio.Event() construit avant
+        # que la boucle de connect() ne tourne se lie, sous Python 3.9, à la
+        # boucle active AU MOMENT DE SA CRÉATION (pas au premier await) --
+        # ici, BleakTransport est construit AVANT asyncio.run(main(...)),
+        # donc sur une autre boucle. Résultat : « Task ... attached to a
+        # different loop » dès le premier await de ._approved, invisible
+        # tant que _try_connect() avalait l'exception. Vérifié sur matériel
+        # réel (macOS, Python 3.9) : la connexion BLE réussissait, mais le
+        # handshake plantait juste après, laissant le lien à moitié ouvert.
+        self._approved: Optional[asyncio.Event] = None
         self._seq = 0
         self._reassembler = p.FrameReassembler()
 
@@ -60,10 +75,12 @@ class BleakTransport(Transport):
 
     async def connect(self) -> None:
         self._loop = asyncio.get_running_loop()
-        self._approved.clear()
+        self._approved = asyncio.Event()
         self._client = BleakClient(self.address,
                                    disconnected_callback=self._on_ble_disconnect)
-        await self._client.connect()
+        # timeout par défaut de bleak (10 s) trop court pour un .app macOS
+        # empaqueté (--windowed) : voir _HANDSHAKE_TIMEOUT ci-dessus, même cause.
+        await self._client.connect(timeout=_HANDSHAKE_TIMEOUT)
         await self._client.start_notify(p.NOTIFY_CHAR_UUID, self._on_raw_notify)
 
         # Handshake : requête verify_mode=0 -> attend l'approbation (verify_mode=2).

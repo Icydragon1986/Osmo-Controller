@@ -99,8 +99,15 @@ class CameraConnection:
         self._want_connected = False
         self._seq = 0
         self._task: Optional[asyncio.Task] = None
-        self._link_lost = asyncio.Event()
-        self._connected_event = asyncio.Event()
+        # Créés dans start() (pas ici) : un asyncio.Event() construit avant
+        # que la boucle du superviseur ne tourne se lie, sous Python 3.9, à
+        # la boucle active AU MOMENT DE SA CRÉATION -- ici, CameraConnection
+        # est construit AVANT asyncio.run(main(...)) (dans build_real_manager,
+        # appelé en synchrone), donc sur une autre boucle. Résultat : « Task
+        # ... attached to a different loop » (vérifié sur matériel réel,
+        # macOS/Python 3.9 -- voir aussi bleak_transport._approved, même cause).
+        self._link_lost: Optional[asyncio.Event] = None
+        self._connected_event: Optional[asyncio.Event] = None
 
         transport.set_notify_callback(self._on_frame)
         transport.set_disconnect_callback(self._on_link_lost)
@@ -127,6 +134,8 @@ class CameraConnection:
         """Lance le superviseur qui maintient la connexion en arrière-plan."""
         if self._task is not None and not self._task.done():
             return
+        self._link_lost = asyncio.Event()
+        self._connected_event = asyncio.Event()
         self._want_connected = True
         self._task = asyncio.ensure_future(self._supervise())
 
@@ -192,7 +201,13 @@ class CameraConnection:
             return True
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception as e:
+            # Journalisé (pas juste avalé) : une exception silencieuse ici est
+            # indiscernable d'une caméra hors de portée, ce qui a rendu un vrai
+            # bug (asyncio.Event lié à la mauvaise boucle, voir bleak_transport
+            # et le commentaire sur _link_lost ci-dessus) invisible pendant des
+            # heures de diagnostic sur matériel réel.
+            print(f"  [{self.name}] connexion échouée : {type(e).__name__}: {e}", flush=True)
             return False
 
     # ------------------------------------------------------------------ #

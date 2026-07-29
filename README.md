@@ -239,8 +239,60 @@ l'auto-update peut remplacer sans rebuild : `app/` (tout le code de l'app).
 BCC-3), et fermeture propre — tous fonctionnent depuis l'exe construit.
 
 **macOS (`.app`)** : pas faisable depuis Windows, PyInstaller ne fait pas de
-compilation croisée. Il faudra relancer `pip install pyinstaller` + une
-commande équivalente sur un vrai Mac quand tu en auras un.
+compilation croisée. Voir la section dédiée ci-dessous.
+
+## Packager en .app (macOS)
+
+```bash
+pip3 install pyinstaller
+./build_launcher_mac.sh
+```
+
+Construit `dist/OsmoController.app` — un vrai bundle macOS, avec `app/` +
+`cameras.json`/`update_config.json` **à l'intérieur** (`Contents/MacOS/`, à
+côté de l'exécutable réel — c'est là que `sys.executable` pointe une fois
+packagé, pas à côté du `.app` lui-même). Le dossier `dist/OsmoController.app`
+au complet est ce qu'on distribue (zippé) : double-clic, pas besoin
+d'installer Python ni `bleak` sur le poste cible.
+
+Ce qui est figé dans l'app (change rarement, nécessite un rebuild) : Python +
+`bleak` (CoreBluetooth/pyobjc, collecté automatiquement par le script). Ce qui
+reste à côté, non compilé, et que l'auto-update peut remplacer sans rebuild :
+`app/`.
+
+**Vérifié sur matériel réel** (Mac + caméra BCC-3) : double-clic Finder (pas
+de blocage Gatekeeper — le build est fait localement, pas de quarantaine ;
+sur une AUTRE machine où l'app a été téléchargée/copiée, clic droit > Ouvrir
+la première fois si macOS refuse), pas de fenêtre console visible (c'est
+`--windowed`, volontaire — sinon PyInstaller ne produit pas un vrai `.app` du
+tout sur macOS), navigateur ouvert automatiquement, mode simulation, mode réel
+(connexion, statut en direct, démarrage/arrêt d'enregistrement, fermeture
+propre via « Quitter »).
+
+Trois pièges macOS trouvés et corrigés en cours de route (aucun n'existe côté
+Windows) :
+1. **Permission Bluetooth par app** : chaque `.app` (identité/signature
+   distincte) a sa propre entrée dans Réglages Système → Confidentialité et
+   sécurité → Bluetooth — celle donnée à Terminal ne s'applique pas à
+   `OsmoController.app`. `Info.plist` doit aussi déclarer
+   `NSBluetoothAlwaysUsageDescription`, sinon CoreBluetooth échoue sans même
+   déclencher de popup de permission (ni erreur claire) ; `build_launcher_mac.sh`
+   génère un `.spec` patché pour l'inclure automatiquement.
+2. **Boucle d'événements CoreBluetooth plus lente en `--windowed`** : sans
+   fenêtre/`NSApplication` au premier plan, la connexion BLE peut prendre
+   jusqu'à ~20 s au lieu de 2-3 s. `bleak_transport.py` utilise maintenant un
+   délai de 25 s (`_HANDSHAKE_TIMEOUT`, appliqué aussi au `connect()` de
+   `bleak` lui-même) au lieu de 8 s.
+3. **`asyncio.Event()` créé trop tôt (bug réel, pas juste macOS/packaging)** :
+   sous Python 3.9, un `asyncio.Event()` construit avant que la boucle
+   `asyncio.run(...)` existe se lie à la mauvaise boucle
+   (`RuntimeError: ... attached to a different loop`), et l'erreur était
+   silencieusement avalée par `CameraConnection._try_connect()`, rendant le
+   bug invisible (la caméra semblait juste injoignable). Corrigé dans
+   `bleak_transport.py` (`_approved`) et `connection.py` (`_link_lost`,
+   `_connected_event`) en créant ces `Event` au moment de `connect()`/`start()`
+   plutôt que dans `__init__`. Les exceptions de connexion sont maintenant
+   journalisées (`  [nom] connexion échouée : ...`) au lieu d'être avalées.
 
 ## Architecture
 
@@ -295,7 +347,14 @@ matériel — le reste de la pile ne change pas selon le transport utilisé.
 - **Mise à jour automatique** : FAIT et branché (`launcher.py`), dépôt GitHub
   public en place et vérifié en conditions réelles (voir section ci-dessus).
 - **Packaging** : `.exe` Windows fait et vérifié (voir section ci-dessus,
-  `build_launcher.bat`). `.app` macOS : pas faisable sans un vrai Mac.
+  `build_launcher.bat`). `.app` macOS : FAIT et **vérifié réellement**
+  (`build_launcher_mac.sh` — voir section « Packager en .app (macOS) »
+  ci-dessus) — double-clic Finder, simulation, mode réel avec BCC-3
+  (connexion, statut, enregistrement, fermeture propre). Au passage, deux
+  bugs de fond corrigés dans `bleak_transport.py`/`connection.py` (des
+  `asyncio.Event()` créés hors de la bonne boucle asyncio) — invisibles avant
+  parce que l'exception était silencieusement avalée ; les erreurs de
+  connexion sont maintenant journalisées.
 - **Accès iPad + comptes + code QR** : FAIT (voir section « Accès depuis un
   iPad » ci-dessus) — relais Wi-Fi vers le PC, comptes admin/operator, bouton
   QR pour se connecter sans taper d'adresse. Testé (curl + navigateur réel) :
