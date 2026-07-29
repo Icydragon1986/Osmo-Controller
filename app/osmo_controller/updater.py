@@ -101,7 +101,16 @@ def _extract_zip_to(data: bytes, dest: Path) -> None:
         shutil.rmtree(dest)
     dest.mkdir(parents=True)
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
-        zf.extractall(dest)
+        for info in zf.infolist():
+            # Certains zips construits sous Windows (Compress-Archive,
+            # "Envoyer vers > Dossier compressé") stockent les chemins avec
+            # des antislashs au lieu de '/'. zipfile ne convertit que '/' en
+            # separateur natif : sur macOS/Linux l'antislash reste tel quel,
+            # ce qui aplatit l'arborescence en fichiers plats du genre
+            # "osmo_controller\auth.py" -- vécu en prod, cf. crash
+            # ModuleNotFoundError au démarrage. On normalise avant extraction.
+            info.filename = info.filename.replace("\\", "/")
+            zf.extract(info, dest)
     entries = [p for p in dest.iterdir() if p.name not in ("__MACOSX",)]
     if len(entries) == 1 and entries[0].is_dir():
         inner = entries[0]

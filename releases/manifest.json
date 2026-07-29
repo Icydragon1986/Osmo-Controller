@@ -1,6 +1,6 @@
 {
-  "version": "0.16.0",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.16.0.zip",
-  "sha256": "f87b613b2090a751241e8935605bb0f48318e5f8ac4228ff7059565786f0d199",
-  "notes": "Gestion des comptes depuis l interface (bouton Comptes, admin) : ajouter/modifier/retirer, plus besoin du CLI apres le premier compte."
+  "version": "0.16.1",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.16.1.zip",
+  "sha256": "d5073ef071cdc440d9ca9f39ae07ee7550f3bcb3278f38ee7df74220002f0c30",
+  "notes": "Correction du crash macOS/Linux : les zips de mise a jour construits sous Windows stockaient des chemins avec antislash, ce qui cassait le package osmo_controller a l'extraction. Fix cote client (updater.py) + zips recoupes avec des separateurs corrects."
 }

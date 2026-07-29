@@ -54,6 +54,15 @@ def apply_pending_update() -> None:
     try:
         if updater.finalize_pending_update(APP_DIR):
             print("Mise à jour appliquée.", flush=True)
+            # app/ vient d'être remplacé sur disque, mais les modules
+            # osmo_controller déjà importés ci-dessus (dont VERSION) restent
+            # en mémoire avec l'ANCIEN code -- sans ça, check_for_next_update()
+            # comparerait le manifeste à une version périmée et retéléchargerait
+            # la même mise à jour en boucle à chaque démarrage. On invalide le
+            # cache d'import pour forcer une relecture depuis le nouveau app/.
+            for name in list(sys.modules):
+                if name == "osmo_controller" or name.startswith("osmo_controller."):
+                    del sys.modules[name]
     except OSError as e:
         print(f"Échec de l'application de la mise à jour ({e}) "
               f"— on continue avec la version actuelle.", flush=True)
