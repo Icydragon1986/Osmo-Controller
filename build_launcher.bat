@@ -17,11 +17,13 @@ python -m PyInstaller --name OsmoController --onedir --console ^
   --collect-all bleak --collect-all winrt ^
   --hidden-import abc --hidden-import argparse --hidden-import asyncio ^
   --hidden-import dataclasses --hidden-import enum --hidden-import gc ^
-  --hidden-import hashlib --hidden-import http.server --hidden-import io ^
-  --hidden-import json --hidden-import pathlib --hidden-import random ^
-  --hidden-import shutil --hidden-import signal --hidden-import struct ^
-  --hidden-import threading --hidden-import time --hidden-import typing ^
-  --hidden-import urllib.request --hidden-import webbrowser --hidden-import zipfile ^
+  --hidden-import hashlib --hidden-import http.server --hidden-import http.cookies ^
+  --hidden-import io --hidden-import json --hidden-import pathlib ^
+  --hidden-import random --hidden-import re --hidden-import secrets ^
+  --hidden-import shutil --hidden-import signal --hidden-import socket ^
+  --hidden-import struct --hidden-import subprocess --hidden-import threading ^
+  --hidden-import time --hidden-import typing --hidden-import urllib.request ^
+  --hidden-import webbrowser --hidden-import zipfile ^
   --noconfirm --clean ^
   launcher.py
 if errorlevel 1 (
