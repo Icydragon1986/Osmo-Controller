@@ -25,7 +25,7 @@ fi
 # a chaque build, pas versionne (voir .gitignore).
 python3 -m PyInstaller.utils.cliutils.makespec --name OsmoController --onedir --windowed \
   --exclude-module app --exclude-module osmo_controller \
-  --collect-all bleak \
+  --collect-all bleak --collect-all qrcode \
   --hidden-import abc --hidden-import argparse --hidden-import asyncio \
   --hidden-import dataclasses --hidden-import enum --hidden-import gc \
   --hidden-import hashlib --hidden-import http.server --hidden-import http.cookies \

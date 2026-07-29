@@ -14,7 +14,7 @@ if errorlevel 1 (
 
 python -m PyInstaller --name OsmoController --onedir --console ^
   --exclude-module app --exclude-module osmo_controller ^
-  --collect-all bleak --collect-all winrt ^
+  --collect-all bleak --collect-all winrt --collect-all qrcode ^
   --hidden-import abc --hidden-import argparse --hidden-import asyncio ^
   --hidden-import dataclasses --hidden-import enum --hidden-import gc ^
   --hidden-import hashlib --hidden-import http.server --hidden-import http.cookies ^
