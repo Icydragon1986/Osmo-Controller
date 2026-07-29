@@ -282,12 +282,16 @@ matériel — le reste de la pile ne change pas selon le transport utilisé.
 - **Transport BLE réel, appairage, device_id** : faits et **prouvés sur
   caméra physique** (voir `bleak_transport.py`).
 - Valider **3+ caméras en BLE simultané** (testé jusqu'à présent avec 1).
-- **Support Mac** : le code est prêt côté logiciel (bleak est multiplateforme,
-  la réception BLE ré-assemble maintenant les trames quel que soit le MTU —
-  voir `FrameReassembler` dans `protocol.py` — et les adresses/UUID macOS sont
-  traitées comme de simples identifiants opaques). Reste à **valider sur une
-  vraie machine Mac + vraie caméra** (aucun Mac disponible pour l'instant) :
-  connexion, statut en direct, enregistrement, déconnexion propre.
+- **Support Mac** : FAIT et **vérifié réellement** sur une vraie machine Mac +
+  vraie caméra (BCC-3). Séquence complète validée avec `hardware/scan_ble.py`
+  puis `hardware/real_camera_test.py` : scan (caméra trouvée via son UUID
+  CoreBluetooth + service 0xFFF0), connexion sans popup, statut en direct
+  (batterie, capacité SD, température), démarrage/arrêt d'un enregistrement
+  réel, déconnexion propre. ⚠️ Point d'attention macOS découvert au passage :
+  Terminal.app (ou l'app qui lance Python) doit avoir la permission
+  Bluetooth activée dans Réglages Système → Confidentialité et sécurité →
+  Bluetooth, sinon bleak échoue avec l'erreur trompeuse « Bluetooth device is
+  turned off » même quand le Bluetooth est bien actif.
 - **Mise à jour automatique** : FAIT et branché (`launcher.py`), dépôt GitHub
   public en place et vérifié en conditions réelles (voir section ci-dessus).
 - **Packaging** : `.exe` Windows fait et vérifié (voir section ci-dessus,
