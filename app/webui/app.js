@@ -21,6 +21,7 @@ const connDot = document.getElementById("conn-dot");
 const connText = document.getElementById("conn-text");
 const quitBtn = document.getElementById("quit");
 const whoamiEl = document.getElementById("whoami");
+const usersBtn = document.getElementById("users");
 
 const cards = new Map();           // nom -> élément DOM
 const lastData = new Map();        // nom -> dernier état serveur connu
@@ -415,6 +416,7 @@ async function refresh() {
     if (data.version && versionEl) versionEl.textContent = "v" + data.version + " · " + APP_VERSION;
     manageBtn.hidden = !data.manageable;
     quitBtn.hidden = data.role !== "admin";   // quitter ferme l'app pour tout le monde : admin seulement
+    usersBtn.hidden = data.role !== "admin";  // gérer les comptes : admin seulement
     if (whoamiEl && data.username) whoamiEl.textContent = `${data.username} (${data.role})`;
     if (!modal.hidden) renderManageList();     // garde la liste de la modale à jour
     connDot.classList.add("ok");
@@ -527,6 +529,89 @@ function makeHotspotBox(hotspot) {
   box.appendChild(btn);
   return box;
 }
+
+// --- gestion des comptes (modale) ----------------------------------- //
+const usersModal = document.getElementById("users-modal");
+
+usersBtn.addEventListener("click", openUsers);
+document.getElementById("users-close").addEventListener("click", () => (usersModal.hidden = true));
+usersModal.addEventListener("click", (e) => { if (e.target === usersModal) usersModal.hidden = true; });
+
+function openUsers() {
+  usersModal.hidden = false;
+  document.getElementById("user-error").hidden = true;
+  document.getElementById("user-form").reset();
+  renderUsersList();
+}
+
+async function renderUsersList() {
+  const list = document.getElementById("users-list");
+  list.innerHTML = '<div class="manage-empty">Chargement…</div>';
+  try {
+    const r = await fetch("/api/users");
+    if (r.status === 401) { window.location.href = "/login"; return; }
+    const data = await r.json();
+    if (!data.ok) {
+      list.innerHTML = `<div class="manage-empty">Erreur : ${data.error}</div>`;
+      return;
+    }
+    if (!data.users.length) {
+      list.innerHTML = '<div class="manage-empty">Aucun compte.</div>';
+      return;
+    }
+    list.innerHTML = "";
+    for (const u of data.users) {
+      const el = document.createElement("div");
+      el.className = "manage-item";
+      el.innerHTML = `<div class="info"><span class="n">${u.username}</span>` +
+        `<span class="a">${u.role}</span></div>`;
+      const btn = document.createElement("button");
+      btn.className = "btn btn-remove";
+      btn.textContent = "Retirer";
+      btn.addEventListener("click", async () => {
+        if (!confirm(`Retirer le compte « ${u.username} » ?`)) return;
+        btn.disabled = true;
+        const res = await fetch("/api/command", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "remove_user", username: u.username }),
+        });
+        const j = await res.json();
+        if (!j.ok) { btn.disabled = false; alert("Erreur : " + j.error); return; }
+        renderUsersList();
+      });
+      el.appendChild(btn);
+      list.appendChild(el);
+    }
+  } catch (e) {
+    list.innerHTML = '<div class="manage-empty">Impossible de récupérer les comptes.</div>';
+  }
+}
+
+document.getElementById("user-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("user-error");
+  errorEl.hidden = true;
+  const username = document.getElementById("user-username").value.trim();
+  const password = document.getElementById("user-password").value;
+  const role = document.getElementById("user-role").value;
+  try {
+    const r = await fetch("/api/command", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add_user", username, password, role }),
+    });
+    const j = await r.json();
+    if (!j.ok) {
+      errorEl.textContent = j.error || "Échec.";
+      errorEl.hidden = false;
+      return;
+    }
+    document.getElementById("user-form").reset();
+    renderUsersList();
+  } catch (e) {
+    errorEl.textContent = "Serveur injoignable.";
+    errorEl.hidden = false;
+  }
+});
 
 // --- gestion des caméras (modale) ---------------------------------- //
 const modal = document.getElementById("manage-modal");

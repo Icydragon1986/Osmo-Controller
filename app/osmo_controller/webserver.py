@@ -66,7 +66,8 @@ def _qr_svg(data: str) -> str:
 # Actions qui touchent la config partagée (caméras, réseau) ou ferment l'app
 # pour TOUT LE MONDE : réservées au rôle admin.
 _ADMIN_ONLY_ACTIONS = {"scan", "add_camera", "remove_camera", "quit",
-                       "hotspot_start", "hotspot_stop"}
+                       "hotspot_start", "hotspot_stop",
+                       "add_user", "remove_user"}
 
 
 def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
@@ -232,6 +233,19 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                 self._send_json({"ok": True, "items": items, "wifi": wifi_item,
                                  "hotspot": hotspot_status})
                 return
+            if self.path == "/api/users":
+                if session is None:
+                    self._send_json({"ok": False, "error": "non authentifié"}, 401)
+                    return
+                _username, role = session
+                if role != "admin":
+                    self._send_json({"ok": False, "error": "réservé aux comptes admin"}, 403)
+                    return
+                users = auth.load_users(users_path) if users_path else {}
+                # Jamais le hash du mot de passe, juste de quoi lister/gérer.
+                items = [{"username": u, "role": e.get("role")} for u, e in users.items()]
+                self._send_json({"ok": True, "users": items})
+                return
             self.send_error(404, "Route inconnue")
 
         def do_POST(self):
@@ -268,6 +282,33 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                 print("« Quitter » reçu — arrêt propre en cours…")
                 if on_quit is not None:
                     on_quit()
+                return
+
+            # Gestion des comptes : pur I/O fichier, pas besoin de la boucle asyncio.
+            if action == "add_user":
+                new_username = (req.get("username") or "").strip()
+                new_password = req.get("password") or ""
+                new_role = req.get("role") or "operator"
+                if not new_username or not new_password:
+                    self._send_json({"ok": False, "error": "nom et mot de passe requis"}, 400)
+                    return
+                try:
+                    auth.add_user(users_path, new_username, new_password, role=new_role)
+                except ValueError as e:
+                    self._send_json({"ok": False, "error": str(e)}, 400)
+                    return
+                self._send_json({"ok": True})
+                return
+            if action == "remove_user":
+                target = (req.get("username") or "").strip()
+                if target == _username:
+                    self._send_json({"ok": False, "error": "impossible de retirer ton propre compte"}, 400)
+                    return
+                removed = auth.remove_user(users_path, target)
+                if not removed:
+                    self._send_json({"ok": False, "error": "compte introuvable"}, 404)
+                    return
+                self._send_json({"ok": True})
                 return
 
             coro = self._dispatch(req)

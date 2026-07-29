@@ -245,6 +245,16 @@ main { padding: 26px; max-width: 1200px; margin: 0 auto; }
 .manage-item .info .a { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .manage-empty { color: var(--muted); font-size: 13px; }
 
+/* ---------- Comptes (modale) ---------- */
+.user-form {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center;
+}
+.user-form input, .user-form select {
+  background: var(--bg-card-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+}
+.user-form input { flex: 1; min-width: 120px; }
+
 /* ---------- Connexion iPad (modale) ---------- */
 .connect-list {
   display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; justify-content: center;

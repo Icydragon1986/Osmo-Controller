@@ -49,22 +49,43 @@ appareils (iPad, téléphone…) ouvrent simplement la page web du PC par le
 Wi-Fi — ils ne font jamais de Bluetooth eux-mêmes.
 
 **1. Comptes** (`users.json`, à la racine — jamais de mot de passe en clair,
-haché avec PBKDF2) :
+haché avec PBKDF2). Deux façons de les gérer :
 
-```bash
-python manage_users.py add jonathan motdepasse --role admin
-python manage_users.py add coach1 motdepasse2 --role operator
-python manage_users.py list
-python manage_users.py remove coach1
-```
+- **Depuis l'interface** (bouton « 👤 Comptes », admin seulement) : liste des
+  comptes existants avec un bouton Retirer chacun, et un formulaire
+  nom/mot de passe/rôle pour ajouter un compte — **retaper le nom d'un compte
+  existant change simplement son mot de passe/rôle** (pas besoin d'un bouton
+  « modifier » séparé). Impossible de retirer son propre compte par erreur
+  (protection intégrée).
+- **En ligne de commande** (utile pour le tout premier compte, avant d'avoir
+  accès à l'interface) :
+  ```bash
+  python manage_users.py add jonathan motdepasse --role admin
+  python manage_users.py add coach1 motdepasse2 --role operator
+  python manage_users.py list
+  python manage_users.py remove coach1
+  ```
 
 Deux rôles :
-- **admin** : tout (enregistrement, gérer les caméras, quitter l'app).
+- **admin** : tout (enregistrement, gérer les caméras/comptes, quitter l'app).
 - **operator** : juste démarrer/arrêter l'enregistrement et voir le statut —
-  ne peut pas scanner/ajouter/retirer de caméra ni fermer l'app pour tout le monde.
+  ne peut pas scanner/ajouter/retirer de caméra, gérer les comptes, ni fermer
+  l'app pour tout le monde.
 
 Si aucun compte n'existe, l'app le rappelle au démarrage et personne ne peut
-se connecter tant que tu n'en as pas ajouté au moins un.
+se connecter tant que tu n'en as pas ajouté au moins un (par CLI la première
+fois, forcément — sans compte, impossible d'atteindre le bouton).
+
+**Partager les mêmes comptes entre plusieurs machines** (ton PC, un Mac, un
+autre laptop…) : `users.json` est local à chaque installation, il n'est pas
+synchronisé automatiquement. Le plus simple est de **copier ton fichier
+`users.json`** (celui où tu as déjà créé tous les comptes) dans le dossier de
+chaque nouvelle installation — les mots de passe hachés sont portables d'une
+machine à l'autre sans rien recalculer. `build_launcher.bat` et
+`build_launcher_mac.sh` le font automatiquement s'il est présent à la racine
+au moment du build (voir sections packaging plus bas), pour que la personne
+qui reçoit l'app puisse se connecter directement, sans jamais toucher à un
+terminal.
 
 **2. Rendre le PC accessible sur le réseau** : lance avec `--host 0.0.0.0`
 (déjà fait dans `Lancer Osmo Controller.bat`/`.command`). Le PC affiche alors

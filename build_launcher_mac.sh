@@ -67,6 +67,13 @@ rm -rf "$MACOS_DIR/app"
 cp -R app "$MACOS_DIR/app"
 [ -f "$MACOS_DIR/cameras.json" ] || cp cameras.json "$MACOS_DIR/cameras.json"
 [ -f "$MACOS_DIR/update_config.json" ] || cp update_config.json "$MACOS_DIR/update_config.json"
+# users.json/wifi_config.json : copies seulement si TU en as un ici (tes
+# comptes/hotspot deja configures) -- comme ca, la personne qui recoit ce
+# bundle peut se connecter tout de suite, sans jamais toucher a un terminal.
+# ("|| true" partout : ce sont des copies optionnelles, "set -e" ne doit pas
+# faire echouer le build juste parce qu'un fichier n'existe pas ici.)
+if [ -f "users.json" ] && [ ! -f "$MACOS_DIR/users.json" ]; then cp users.json "$MACOS_DIR/users.json"; fi
+if [ -f "wifi_config.json" ] && [ ! -f "$MACOS_DIR/wifi_config.json" ]; then cp wifi_config.json "$MACOS_DIR/wifi_config.json"; fi
 
 echo
 echo "Termine : dist/OsmoController.app"

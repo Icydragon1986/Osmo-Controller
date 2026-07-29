@@ -1,6 +1,6 @@
 {
-  "version": "0.15.0",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.15.0.zip",
-  "sha256": "713190f5116b1b610f484a6de593976c380cfc94e0f290d3f74167de1ae986d8",
-  "notes": "Support Mac valide sur vrai materiel (BCC-3) + packaging .app macOS. Corrige un vrai bug asyncio.Event() cree hors boucle (Python 3.9) qui pouvait rendre une camera injoignable en silence."
+  "version": "0.16.0",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.16.0.zip",
+  "sha256": "f87b613b2090a751241e8935605bb0f48318e5f8ac4228ff7059565786f0d199",
+  "notes": "Gestion des comptes depuis l interface (bouton Comptes, admin) : ajouter/modifier/retirer, plus besoin du CLI apres le premier compte."
 }

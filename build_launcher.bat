@@ -36,6 +36,11 @@ echo Assemblage du dossier final (app/ + config)...
 xcopy /e /i /y app "dist\OsmoController\app" >nul
 if not exist "dist\OsmoController\cameras.json" copy /y cameras.json "dist\OsmoController\cameras.json" >nul
 if not exist "dist\OsmoController\update_config.json" copy /y update_config.json "dist\OsmoController\update_config.json" >nul
+REM users.json/wifi_config.json : copies seulement si TU en as un ici (tes
+REM comptes/hotspot deja configures) -- comme ca, la personne qui recoit ce
+REM dossier peut se connecter tout de suite, sans jamais toucher a un terminal.
+if exist "users.json" if not exist "dist\OsmoController\users.json" copy /y users.json "dist\OsmoController\users.json" >nul
+if exist "wifi_config.json" if not exist "dist\OsmoController\wifi_config.json" copy /y wifi_config.json "dist\OsmoController\wifi_config.json" >nul
 
 echo.
 echo Termine : dist\OsmoController\OsmoController.exe
