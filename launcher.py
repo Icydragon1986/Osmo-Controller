@@ -96,7 +96,17 @@ def main() -> int:
     # directement dans ce même processus, depuis app/ sur disque (mis à jour
     # au besoin par apply_pending_update() juste avant).
     import app as app_module
-    return app_module.run(sys.argv[1:])
+    argv = sys.argv[1:]
+    if getattr(sys, "frozen", False) and not argv:
+        # Un .app/.exe packagé lancé par double-clic (Finder/Explorateur) ne
+        # reçoit JAMAIS d'arguments -- contrairement à "Lancer Osmo
+        # Controller.command"/.bat, qui passent --real --host 0.0.0.0 à la
+        # main. Sans ce filet, le double-clic retombe silencieusement sur les
+        # valeurs par défaut d'app.py (mode simulation, caméras fictives,
+        # écoute sur 127.0.0.1 seulement -- donc invisible pour un iPad sur
+        # le même Wi-Fi). Vécu en prod : "l'app tourne mais rien ne marche".
+        argv = ["--real", "--host", "0.0.0.0"]
+    return app_module.run(argv)
 
 
 if __name__ == "__main__":
