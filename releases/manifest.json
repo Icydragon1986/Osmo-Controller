@@ -1,6 +1,6 @@
 {
-  "version": "0.17.0",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.17.0.zip",
-  "sha256": "69f2f4f761a579ccce8db42efe1dd25e0985d66ba934015f25221dbaf46741cc",
-  "notes": "Hotspot : repli sur le reseau heberge legacy quand Mobile Hotspot n a pas de connexion a partager (config via manage_wifi.py set). Doc Gatekeeper/quarantine macOS pour usage hors ligne."
+  "version": "0.17.1",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.17.1.zip",
+  "sha256": "2c142ea622b063fdb346e715a8ef635ddddc29c8abb0a1db07fa31d67573b77d",
+  "notes": "Arret idiot-proof si on oublie le bouton Quitter : Windows capte la fermeture de fenetre (SetConsoleCtrlHandler), Mac/Linux via SIGHUP. Doc README pour le repli macOS (app packagee invisible)."
 }
