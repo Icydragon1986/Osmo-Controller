@@ -284,6 +284,16 @@ def _run_macos(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
         def quit_(self, sender):
             request_stop()
 
+        # macOS envoie cet évènement quand on reclique sur l'app (Finder ou
+        # Dock) alors qu'une instance tourne déjà -- au lieu de relancer un
+        # process (qui n'arrive jamais, testé sur matériel réel : aucun
+        # nouveau process ne démarre), il "réactive" celle-ci. Sans ce
+        # handler, réactiver une app sans fenêtre ne fait STRICTEMENT rien de
+        # visible ; on en profite pour rouvrir l'onglet du navigateur.
+        def applicationShouldHandleReopen_hasVisibleWindows_(self, sender, flag):
+            webbrowser.open(local_url)
+            return True
+
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
 
@@ -303,6 +313,7 @@ def _run_macos(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
         item.setVisible_(True)
         item.button().setTitle_("Osmo")
         delegate = _MenuDelegate.alloc().init()
+        app.setDelegate_(delegate)
         menu = NSMenu.alloc().init()
         open_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             "Ouvrir l'interface", "openInterface:", "")
