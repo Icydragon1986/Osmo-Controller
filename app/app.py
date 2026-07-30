@@ -65,13 +65,26 @@ def build_simulated_manager(n: int) -> CameraManager:
 
 
 def already_running(port: int) -> bool:
-    """Vrai si une instance d'Osmo Controller répond déjà sur ce port."""
+    """Vrai si une instance d'Osmo Controller répond déjà sur ce port.
+
+    /api/state répond 401 (pas 200) tant que personne n'est connecté --
+    ex. une instance restée sur l'écran de login. urlopen() lève une
+    HTTPError sur ce 401, qui ressemblait à "rien n'écoute ici" : on
+    relançait alors une 2e instance par-dessus la première, encore bien
+    vivante. On reconnaît maintenant ce 401 précis comme "ça tourne"."""
     import json
+    import urllib.error
     import urllib.request
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state", timeout=1.5) as r:
             data = json.loads(r.read().decode("utf-8"))
         return isinstance(data, dict) and "version" in data
+    except urllib.error.HTTPError as e:
+        try:
+            data = json.loads(e.read().decode("utf-8"))
+        except Exception:  # noqa: BLE001
+            return False
+        return isinstance(data, dict) and data.get("error") == "non authentifié"
     except Exception:  # noqa: BLE001
         return False
 
