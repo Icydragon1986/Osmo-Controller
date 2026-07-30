@@ -1,6 +1,6 @@
 {
-  "version": "0.16.1",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.16.1.zip",
-  "sha256": "d5073ef071cdc440d9ca9f39ae07ee7550f3bcb3278f38ee7df74220002f0c30",
-  "notes": "Correction du crash macOS/Linux : les zips de mise a jour construits sous Windows stockaient des chemins avec antislash, ce qui cassait le package osmo_controller a l'extraction. Fix cote client (updater.py) + zips recoupes avec des separateurs corrects."
+  "version": "0.17.0",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.17.0.zip",
+  "sha256": "69f2f4f761a579ccce8db42efe1dd25e0985d66ba934015f25221dbaf46741cc",
+  "notes": "Hotspot : repli sur le reseau heberge legacy quand Mobile Hotspot n a pas de connexion a partager (config via manage_wifi.py set). Doc Gatekeeper/quarantine macOS pour usage hors ligne."
 }
