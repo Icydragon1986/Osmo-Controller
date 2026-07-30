@@ -29,6 +29,8 @@ import argparse
 import asyncio
 import json
 import signal
+import sys
+import threading
 import webbrowser
 from pathlib import Path
 
@@ -91,23 +93,63 @@ def build_real_manager(config_path: Path) -> CameraManager:
     return mgr
 
 
+def _install_windows_close_handler(request_stop, cleanup_done: threading.Event) -> None:
+    """Capte la fermeture de la fenêtre console (le X), la déconnexion de
+    session ou l'arrêt de Windows — ce que `signal.signal()` NE PEUT PAS faire
+    sur Windows (SIGINT/SIGBREAK ne couvrent que Ctrl+C/Ctrl+Pause, pas le X).
+
+    Windows ne laisse qu'environ 5 s pour nettoyer avant de tuer le processus
+    de force dans ce cas — le gestionnaire déclenche donc l'arrêt propre puis
+    ATTEND (bloque ce thread, créé par Windows pour l'occasion) que ce
+    nettoyage se termine, au lieu de rendre la main tout de suite : sans ça,
+    Windows tue le processus avant même que la déconnexion Bluetooth ait eu
+    la moindre chance de s'exécuter. Pas de garantie absolue (une déconnexion
+    de plusieurs caméras peut dépasser ces ~5 s), mais bien mieux que 0 % de
+    chances aujourd'hui."""
+    if sys.platform != "win32":
+        return
+    import ctypes
+    from ctypes import wintypes
+
+    CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT = 2, 5, 6
+    HANDLER_ROUTINE = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)
+
+    def _handler(ctrl_type):
+        if ctrl_type not in (CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT):
+            return False
+        print("Fermeture de la fenêtre détectée — déconnexion des caméras…", flush=True)
+        request_stop()
+        cleanup_done.wait(timeout=4.5)   # laisse une marge sous les ~5 s de Windows
+        return True
+
+    # Garder une référence à _handler_ref : sans ça, le garbage collector peut
+    # libérer le callback C et Windows planterait en l'appelant plus tard.
+    global _console_ctrl_handler_ref
+    _console_ctrl_handler_ref = HANDLER_ROUTINE(_handler)
+    ctypes.windll.kernel32.SetConsoleCtrlHandler(_console_ctrl_handler_ref, True)
+
+
 async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, label: str,
                admin=None, users_path=None, wifi_config_path=None) -> None:
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
+    cleanup_done = threading.Event()
 
-    # Le bouton « Quitter » de l'interface et les signaux système déclenchent
-    # tous le MÊME arrêt propre (déconnexion Bluetooth avant de fermer).
+    # Le bouton « Quitter » de l'interface, les signaux système et (Windows)
+    # la fermeture de la fenêtre déclenchent tous le MÊME arrêt propre
+    # (déconnexion Bluetooth avant de fermer).
     def request_stop():
         loop.call_soon_threadsafe(stop_event.set)
 
-    for sig in ("SIGINT", "SIGTERM", "SIGBREAK"):
+    for sig in ("SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"):
         s = getattr(signal, sig, None)
         if s is not None:
             try:
                 signal.signal(s, lambda *_: request_stop())
             except (ValueError, OSError):
                 pass   # certains signaux ne sont pas réglables selon la plateforme
+
+    _install_windows_close_handler(request_stop, cleanup_done)
 
     try:
         server, _thread, _url = webserver.start_in_thread(
@@ -154,6 +196,7 @@ async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
         except asyncio.TimeoutError:
             print("Déconnexion trop lente — fermeture forcée.", flush=True)
         print("Fermé. À bientôt !", flush=True)
+        cleanup_done.set()
 
 
 def run(argv=None) -> int:
