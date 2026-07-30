@@ -23,9 +23,14 @@ fi
 # fonctionne (sans elle, bleak echoue silencieusement -- ni erreur, ni
 # popup de permission -- verifie sur materiel reel). Le .spec est regenere
 # a chaque build, pas versionne (voir .gitignore).
+# --collect-all AppKit/PyObjCTools : pour l'icone de barre de menu (Ouvrir
+# l'interface / Quitter), qui donne un vrai repli quand on ferme l'onglet du
+# navigateur sans cliquer Quitter -- sinon l'app packagee n'a ni Dock ni
+# fenetre a "activer" et reste invisible/injoignable.
 python3 -m PyInstaller.utils.cliutils.makespec --name OsmoController --onedir --windowed \
   --exclude-module app --exclude-module osmo_controller \
   --collect-all bleak --collect-all qrcode \
+  --collect-all AppKit --collect-all PyObjCTools \
   --hidden-import abc --hidden-import argparse --hidden-import asyncio \
   --hidden-import dataclasses --hidden-import enum --hidden-import gc \
   --hidden-import hashlib --hidden-import http.server --hidden-import http.cookies \
@@ -35,6 +40,7 @@ python3 -m PyInstaller.utils.cliutils.makespec --name OsmoController --onedir --
   --hidden-import struct --hidden-import subprocess --hidden-import threading \
   --hidden-import time --hidden-import typing --hidden-import urllib.request \
   --hidden-import webbrowser --hidden-import zipfile \
+  --hidden-import objc --hidden-import Foundation \
   launcher.py
 
 python3 - <<'PY'

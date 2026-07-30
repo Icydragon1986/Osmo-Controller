@@ -130,7 +130,8 @@ def _install_windows_close_handler(request_stop, cleanup_done: threading.Event) 
 
 
 async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, label: str,
-               admin=None, users_path=None, wifi_config_path=None) -> None:
+               admin=None, users_path=None, wifi_config_path=None,
+               register_signals: bool = True, on_ready=None) -> None:
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
     cleanup_done = threading.Event()
@@ -141,15 +142,23 @@ async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
     def request_stop():
         loop.call_soon_threadsafe(stop_event.set)
 
-    for sig in ("SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"):
-        s = getattr(signal, sig, None)
-        if s is not None:
-            try:
-                signal.signal(s, lambda *_: request_stop())
-            except (ValueError, OSError):
-                pass   # certains signaux ne sont pas réglables selon la plateforme
+    # register_signals=False sur Mac (voir _run_macos) : la barre de menu y
+    # tourne sur CE thread-ci (asyncio), donc le thread principal du process
+    # est pris par AppKit -- et signal.signal() n'est utilisable que depuis le
+    # vrai thread principal. _run_macos enregistre alors les signaux lui-même
+    # et nous transmet request_stop via on_ready.
+    if register_signals:
+        for sig in ("SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"):
+            s = getattr(signal, sig, None)
+            if s is not None:
+                try:
+                    signal.signal(s, lambda *_: request_stop())
+                except (ValueError, OSError):
+                    pass   # certains signaux ne sont pas réglables selon la plateforme
+        _install_windows_close_handler(request_stop, cleanup_done)
 
-    _install_windows_close_handler(request_stop, cleanup_done)
+    if on_ready is not None:
+        on_ready(request_stop)
 
     try:
         server, _thread, _url = webserver.start_in_thread(
@@ -197,6 +206,114 @@ async def main(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
             print("Déconnexion trop lente — fermeture forcée.", flush=True)
         print("Fermé. À bientôt !", flush=True)
         cleanup_done.set()
+
+
+def _run_macos(mgr: CameraManager, host: str, port: int, open_browser: bool, label: str,
+               admin, users_path, wifi_config_path) -> int:
+    """Sur Mac, l'app packagée (.app) n'a ni Dock ni fenêtre : fermer l'onglet
+    du navigateur sans cliquer « Quitter » laisse le serveur tourner de façon
+    invisible, et redoubler-cliquer sur l'app se contente de l'« activer »
+    (elle n'a rien à ramener au premier plan, testé sur matériel réel) —
+    impossible de rouvrir l'interface, seul repli : le Moniteur d'activité.
+    Une icône de barre de menu (« Ouvrir l'interface » / « Quitter ») règle
+    les deux à la fois.
+
+    AppKit exige le thread principal (confirmé : une icône de barre de menu
+    lancée depuis un thread à part plante avec NSInternalInconsistencyException,
+    même sans fenêtre) -- donc ici c'est l'inverse de d'habitude : asyncio
+    tourne dans un thread à part pendant que CE thread (le vrai thread
+    principal) fait tourner la boucle NSApplication. Du coup les signaux
+    système, livrés par l'OS uniquement au thread principal, sont enregistrés
+    ICI (pas dans main(), qui tourne ailleurs) et relayés vers request_stop
+    dès qu'asyncio nous l'a fourni via on_ready."""
+    try:
+        from AppKit import (NSApplication, NSStatusBar, NSVariableStatusItemLength,
+                             NSMenu, NSMenuItem, NSApplicationActivationPolicyAccessory)
+        from Foundation import NSObject, NSTimer
+        from PyObjCTools import AppHelper
+    except ImportError:
+        # pyobjc absent (ex. dev sans build complet) : pas de barre de menu,
+        # mais l'app doit quand même tourner -- chemin normal, sans icône.
+        try:
+            asyncio.run(main(mgr, host, port, open_browser, label,
+                             admin=admin, users_path=users_path, wifi_config_path=wifi_config_path))
+        except KeyboardInterrupt:
+            print("\nArrêt demandé. À bientôt !")
+        return 0
+
+    local_url = f"http://127.0.0.1:{port}/"
+    holder = {}
+
+    def request_stop():
+        fn = holder.get("fn")
+        if fn is not None:
+            fn()
+        else:
+            holder["pending"] = True   # signal reçu avant qu'asyncio soit prêt (rare)
+
+    for sig in ("SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"):
+        s = getattr(signal, sig, None)
+        if s is not None:
+            try:
+                signal.signal(s, lambda *_: request_stop())
+            except (ValueError, OSError):
+                pass
+
+    def on_ready(real_request_stop):
+        holder["fn"] = real_request_stop
+        if holder.pop("pending", False):
+            real_request_stop()
+
+    def _asyncio_thread():
+        try:
+            asyncio.run(main(mgr, host, port, open_browser, label,
+                             admin=admin, users_path=users_path, wifi_config_path=wifi_config_path,
+                             register_signals=False, on_ready=on_ready))
+        finally:
+            # Réveille AppHelper.runEventLoop() (thread principal) une fois le
+            # nettoyage Bluetooth terminé -- appel documenté comme sûr
+            # depuis un autre thread (c'est tout l'intérêt d'AppHelper).
+            AppHelper.stopEventLoop()
+
+    threading.Thread(target=_asyncio_thread, daemon=True, name="osmo-asyncio").start()
+
+    class _MenuDelegate(NSObject):
+        def openInterface_(self, sender):
+            webbrowser.open(local_url)
+
+        def quit_(self, sender):
+            request_stop()
+
+    app = NSApplication.sharedApplication()
+    app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+    status_bar = NSStatusBar.systemStatusBar()
+    item = status_bar.statusItemWithLength_(NSVariableStatusItemLength)
+    item.button().setTitle_("Osmo")
+    delegate = _MenuDelegate.alloc().init()
+    menu = NSMenu.alloc().init()
+    open_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+        "Ouvrir l'interface", "openInterface:", "")
+    open_item.setTarget_(delegate)
+    quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+        "Quitter", "quit:", "")
+    quit_item.setTarget_(delegate)
+    menu.addItem_(open_item)
+    menu.addItem_(quit_item)
+    item.setMenu_(menu)
+
+    # AppHelper.runEventLoop() bloque le thread principal dans du code natif
+    # (Objective-C) qui ne rend JAMAIS la main à l'interpréteur Python entre
+    # deux tours -- confirmé : sans ceci, un SIGTERM (ex. Moniteur d'activité
+    # > Quitter) reste enregistré mais ne se déclenche jamais tant que la
+    # boucle tourne. Un timer sans effet, qui se contente de tenir la
+    # référence via _keepalive pour éviter que le GC ne le libère, force
+    # l'interpréteur à reprendre la main périodiquement (même trick que les
+    # intégrations PyObjC/Qt classiques pour laisser passer les signaux).
+    _keepalive = NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
+        0.25, True, lambda _timer: None)
+
+    AppHelper.runEventLoop()
+    return 0
 
 
 def run(argv=None) -> int:
@@ -257,11 +374,15 @@ def run(argv=None) -> int:
         manager = build_simulated_manager(args.cameras)
         label = "MODE SIMULATION"
 
-    try:
-        asyncio.run(main(manager, args.host, args.port, not args.no_browser, label,
-                         admin=admin, users_path=users_path, wifi_config_path=wifi_config_path))
-    except KeyboardInterrupt:
-        print("\nArrêt demandé. À bientôt !")
+    if sys.platform == "darwin":
+        _run_macos(manager, args.host, args.port, not args.no_browser, label,
+                   admin, users_path, wifi_config_path)
+    else:
+        try:
+            asyncio.run(main(manager, args.host, args.port, not args.no_browser, label,
+                             admin=admin, users_path=users_path, wifi_config_path=wifi_config_path))
+        except KeyboardInterrupt:
+            print("\nArrêt demandé. À bientôt !")
     # IMPORTANT : on laisse le processus se terminer NORMALEMENT (pas d'os._exit).
     # Le nettoyage normal de Python libère proprement les objets Bluetooth WinRT
     # — c'est ce qui relâche vraiment la caméra. Un arrêt brutal (os._exit/kill)
