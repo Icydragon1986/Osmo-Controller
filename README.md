@@ -355,6 +355,15 @@ Developer + notariser + "stapler" le ticket (`xcrun stapler staple`) — une
 app stapled se vérifie 100% localement, pour toujours, même au tout premier
 lancement sur une machine neuve. Pas fait actuellement.
 
+⚠️ **Si tu oublies le bouton « Quitter » de l'interface web** : l'app
+packagée (`--windowed`) n'a ni icône Dock ni barre de menu — rien à fermer,
+rien sur quoi faire Cmd+Q. Le seul moyen de l'arrêter proprement est
+**Moniteur d'activité → sélectionner OsmoController → Quitter** (pas
+« Forcer à quitter », qui ne laisse aucune chance de déconnecter les caméras
+proprement — vrai aussi côté Windows). Fermer une fenêtre de Terminal si tu
+lances l'app en ligne de commande déclenche déjà une déconnexion propre
+automatique (testé sur matériel réel).
+
 Trois pièges macOS trouvés et corrigés en cours de route (aucun n'existe côté
 Windows) :
 1. **Permission Bluetooth par app** : chaque `.app` (identité/signature
