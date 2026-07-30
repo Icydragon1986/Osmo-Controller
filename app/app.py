@@ -286,31 +286,47 @@ def _run_macos(mgr: CameraManager, host: str, port: int, open_browser: bool, lab
 
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
-    status_bar = NSStatusBar.systemStatusBar()
-    item = status_bar.statusItemWithLength_(NSVariableStatusItemLength)
-    item.button().setTitle_("Osmo")
-    delegate = _MenuDelegate.alloc().init()
-    menu = NSMenu.alloc().init()
-    open_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-        "Ouvrir l'interface", "openInterface:", "")
-    open_item.setTarget_(delegate)
-    quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-        "Quitter", "quit:", "")
-    quit_item.setTarget_(delegate)
-    menu.addItem_(open_item)
-    menu.addItem_(quit_item)
-    item.setMenu_(menu)
+
+    # Garder toutes les références vivantes tant que la boucle tourne (sinon
+    # le garbage collector les libère et Cocoa plante en rappelant un objet
+    # mort -- delegate/menu/items doivent survivre à l'appel).
+    refs: list = [app]
+
+    def _build_menu_bar(_timer=None):
+        # Construire le NSStatusItem seulement ICI, une fois la boucle
+        # NSApplication démarrée (via un timer à 0s) -- créé plus tôt
+        # (avant AppHelper.runEventLoop()), il reste invisible : la
+        # connexion au serveur de fenêtres n'est établie qu'au run() de
+        # l'app, pas à sharedApplication(). Constaté sur matériel réel.
+        status_bar = NSStatusBar.systemStatusBar()
+        item = status_bar.statusItemWithLength_(NSVariableStatusItemLength)
+        item.setVisible_(True)
+        item.button().setTitle_("Osmo")
+        delegate = _MenuDelegate.alloc().init()
+        menu = NSMenu.alloc().init()
+        open_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Ouvrir l'interface", "openInterface:", "")
+        open_item.setTarget_(delegate)
+        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Quitter", "quit:", "")
+        quit_item.setTarget_(delegate)
+        menu.addItem_(open_item)
+        menu.addItem_(quit_item)
+        item.setMenu_(menu)
+        refs.extend([status_bar, item, menu, delegate, open_item, quit_item])
+
+    refs.append(NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
+        0.0, False, _build_menu_bar))
 
     # AppHelper.runEventLoop() bloque le thread principal dans du code natif
     # (Objective-C) qui ne rend JAMAIS la main à l'interpréteur Python entre
     # deux tours -- confirmé : sans ceci, un SIGTERM (ex. Moniteur d'activité
     # > Quitter) reste enregistré mais ne se déclenche jamais tant que la
-    # boucle tourne. Un timer sans effet, qui se contente de tenir la
-    # référence via _keepalive pour éviter que le GC ne le libère, force
-    # l'interpréteur à reprendre la main périodiquement (même trick que les
-    # intégrations PyObjC/Qt classiques pour laisser passer les signaux).
-    _keepalive = NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
-        0.25, True, lambda _timer: None)
+    # boucle tourne. Un timer sans effet force l'interpréteur à reprendre la
+    # main périodiquement (même trick que les intégrations PyObjC/Qt
+    # classiques pour laisser passer les signaux).
+    refs.append(NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
+        0.25, True, lambda _timer: None))
 
     AppHelper.runEventLoop()
     return 0
