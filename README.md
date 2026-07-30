@@ -5,7 +5,21 @@ Logiciel pour contrôler à distance plusieurs caméras **DJI Osmo Action 5 Pro*
 batterie, le temps restant, l'espace SD et la température — le tout depuis un
 ordinateur (Mac ou PC), avec reconnexion automatique « erreur proof ».
 
-## Lancement rapide (double-clic)
+## Télécharger (pas besoin de Python ni de code)
+
+👉 **[Dernière version — github.com/Icydragon1986/Osmo-Controller/releases](https://github.com/Icydragon1986/Osmo-Controller/releases/latest)**
+
+Choisis le fichier pour ton appareil (`OsmoController-Windows.zip` ou
+`OsmoController-Mac.zip`), dézippe-le, double-clique `OsmoController.exe`
+(Windows) ou `OsmoController.app` (Mac — clic droit → Ouvrir la toute première
+fois). Mac uniquement : lance `xattr -cr OsmoController.app` une fois, pendant
+que tu as encore internet, pour que l'app puisse s'ouvrir même sans connexion
+plus tard (voir « Packager en .app » plus bas).
+
+Au tout premier lancement, aucun compte n'existe — voir la section
+« Comptes » plus bas pour en créer un.
+
+## Lancer depuis le code source (pour développer)
 
 - **Windows** : `Lancer Osmo Controller.bat` (réel) / `Demo (simulation).bat`
 - **Mac** : `Lancer Osmo Controller.command` (réel) / `Demo (simulation).command`
