@@ -207,7 +207,8 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
                 if role == "admin":
                     from . import hotspot
                     try:
-                        fut = asyncio.run_coroutine_threadsafe(hotspot.get_status(), loop)
+                        fut = asyncio.run_coroutine_threadsafe(
+                            hotspot.get_status(wifi_config_path), loop)
                         hotspot_status = fut.result(timeout=5)
                     except Exception:  # noqa: BLE001 — indisponible (pas Windows, etc.) : pas grave
                         hotspot_status = {"available": False}
@@ -349,10 +350,10 @@ def make_handler(manager: CameraManager, loop: asyncio.AbstractEventLoop,
             # --- point d'accès Wi-Fi (hotspot) du PC ---
             if action == "hotspot_start":
                 from . import hotspot
-                return hotspot.start()
+                return hotspot.start(wifi_config_path)
             if action == "hotspot_stop":
                 from . import hotspot
-                return hotspot.stop()
+                return hotspot.stop(wifi_config_path)
             return None
 
     return Handler

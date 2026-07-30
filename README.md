@@ -131,13 +131,37 @@ pip install "winrt-Windows.Networking.NetworkOperators" "winrt-Windows.Networkin
 ⚠️ Ne reconfigure pas le nom/mot de passe existant du hotspot — démarre/arrête
 juste avec ce qui est déjà défini dans Windows (Paramètres > Réseau et
 Internet > Point d'accès mobile), pour ne pas casser un mot de passe déjà
-communiqué à l'équipe. Windows seulement (pas de Mac).
+communiqué à l'équipe.
+
+⚠️ **Limite vécue en tournoi** : cette API Windows (Mobile Hotspot) exige une
+connexion internet déjà active à partager — sans Ethernet ni autre Wi-Fi
+connecté, elle refuse de démarrer, même si les appareils qui rejoignent le
+hotspot n'ont pas besoin d'internet. Dans ce cas, l'app bascule automatiquement
+sur le **réseau hébergé legacy** (`netsh wlan hostednetwork`), qui ne dépend
+d'aucune connexion existante — seulement du SSID/mot de passe déjà réglés via
+`manage_wifi.py set`. Si l'adaptateur Wi-Fi de la machine ne supporte plus
+cette fonctionnalité (fréquent sur du matériel récent, vérifiable avec
+`netsh wlan show drivers`, ligne « Réseau hébergé pris en charge »), le bouton
+renverra une erreur claire plutôt que d'échouer en silence.
 
 **5. Sans Wi-Fi de tournoi fiable** : le PC peut créer son propre point d'accès
 Wi-Fi (hotspot), sans avoir besoin d'internet — c'est un réseau local comme un
 routeur maison, les appareils s'y voient entre eux même hors ligne. Tout le
 monde (y compris le PC lui-même, si besoin) s'y connecte à la place ; ça reste
 un seul réseau, un seul PC-relais.
+
+**Sur Mac** : pas de bouton hotspot automatique (Apple n'expose aucune API/CLI
+publique pour "Internet Sharing" — contrairement à Windows). La marche à
+suivre :
+1. Réglages Système > Général > Partage (ou "Partage de connexion internet"
+   selon la version macOS) : partage depuis n'importe quelle interface (même
+   débranchée, ex. Ethernet ou Pont Thunderbolt) vers "Wi-Fi" — ça marche
+   sans connexion internet réelle en amont, seul le partage local aux
+   appareils compte. Choisis un nom de réseau et un mot de passe dans
+   "Options Wi-Fi" en activant le partage.
+2. `python manage_wifi.py set <nom> <mot de passe>` (une seule fois, avec le
+   nom/mot de passe choisis à l'étape 1) — le code QR « Connexion iPad »
+   utilisera ensuite automatiquement ce réseau.
 
 ⚠️ **L'iPad ne peut pas remplacer ce PC-relais** : Safari (et iOS en général)
 n'a aucun accès au Bluetooth bas niveau que `bleak` utilise — ce n'est pas une
@@ -290,6 +314,33 @@ tout sur macOS), navigateur ouvert automatiquement, mode simulation, mode réel
 (connexion, statut en direct, démarrage/arrêt d'enregistrement, fermeture
 propre via « Quitter »).
 
+⚠️ **Vécu en compétition : l'app refuse de s'ouvrir sans connexion internet,
+sur une machine où elle vient d'être copiée/transférée.** Cause : la
+signature est "ad hoc" (pas de compte Apple Developer, `TeamIdentifier=not
+set` — vérifiable avec `codesign -dv --verbose=4 OsmoController.app`). macOS
+marque tout `.app` fraîchement copié/téléchargé/transféré (AirDrop, clé USB,
+cloud…) comme "en quarantaine" ; au tout premier lancement, Gatekeeper essaie
+de contacter les serveurs Apple pour vérifier l'app — sans internet, ça peut
+échouer au lieu de se rabattre proprement, et l'app ne s'ouvre juste pas
+(aucune erreur visible, `--windowed` oblige).
+
+**Checklist avant de partir en compétition**, pour chaque machine/copie de
+l'app :
+```bash
+xattr -cr "/chemin/vers/OsmoController.app"   # retire la quarantaine
+```
+Ça enlève le marqueur une fois pour toutes — plus aucune vérification
+Gatekeeper ensuite, réseau ou pas. **À refaire à chaque nouvelle copie** de
+l'app (nouveau build, nouveau transfert sur une machine). Sinon, lancer l'app
+une fois avec internet (clic droit > Ouvrir, approuver) avant de partir suffit
+aussi dans la plupart des cas, mais `xattr -cr` est plus fiable et
+définitif.
+
+Solution durable (mais payante, $99/an) : signer avec un vrai compte Apple
+Developer + notariser + "stapler" le ticket (`xcrun stapler staple`) — une
+app stapled se vérifie 100% localement, pour toujours, même au tout premier
+lancement sur une machine neuve. Pas fait actuellement.
+
 Trois pièges macOS trouvés et corrigés en cours de route (aucun n'existe côté
 Windows) :
 1. **Permission Bluetooth par app** : chaque `.app` (identité/signature
@@ -343,7 +394,7 @@ app/                     <- REMPLACÉ à chaque mise à jour
 | `webserver.py` | Serveur web local (pont navigateur ↔ asyncio), routes protégées par session |
 | `auth.py` | Comptes (hachage PBKDF2), rôles admin/operator, sessions en mémoire |
 | `wifi_info.py` | Détection/config Wi-Fi + génération du payload QR `WIFI:` |
-| `hotspot.py` | Démarrer/arrêter le point d'accès Wi-Fi du PC (Windows seulement) |
+| `hotspot.py` | Démarrer/arrêter le point d'accès Wi-Fi du PC (Windows seulement ; repli réseau hébergé si aucune connexion à partager) |
 | `updater.py` | Mise à jour automatique (manifeste, téléchargement, échange de dossiers) |
 
 Le découplage clé : `connection.py` parle à une interface `Transport`
@@ -385,12 +436,19 @@ matériel — le reste de la pile ne change pas selon le transport utilisé.
   l'ouverture du navigateur, et un traceback inoffensif s'affichait à la
   déconnexion brutale d'un appareil.
 - **Hotspot du PC démarrable/arrêtable depuis l'appli** : FAIT et **vérifié
-  réellement** (démarrage confirmé, adresse `192.168.137.1` active, arrêt
-  propre, à répétition) — voir section ci-dessus. Windows seulement.
+  réellement** avec une connexion à partager (démarrage confirmé, adresse
+  `192.168.137.1` active, arrêt propre, à répétition) — voir section
+  ci-dessus. Windows seulement.
+  **Cas "machine SANS AUCUNE connexion réseau du tout"** : vécu en tournoi —
+  le Mobile Hotspot Windows refuse de démarrer sans connexion à partager,
+  même si rien de plus n'est requis pour les appareils qui rejoignent le
+  hotspot. Un repli sur le réseau hébergé legacy (`netsh wlan
+  hostednetwork`, ne dépend d'aucune connexion existante) a été ajouté côté
+  code — **pas encore validé sur du matériel réel en offline complet**,
+  ni le support du pilote Wi-Fi utilisé en tournoi. À tester avant de
+  compter dessus en compétition.
   **Reste à valider en vrai tournoi** : portée BLE d'un PC pour plusieurs
-  terrains (peut-être plusieurs PC nécessaires), et le cas d'une machine
-  SANS AUCUNE connexion réseau du tout (testé ici avec Ethernet actif —
-  comportement non vérifié si vraiment rien n'est branché).
+  terrains (peut-être plusieurs PC nécessaires).
   Si tu reconstruis le `.exe` (`build_launcher.bat`), ajoute
   `--collect-all qrcode --collect-all winrt` pour que les boutons QR et
   hotspot fonctionnent aussi depuis l'exe (pas encore fait dans le build actuel).
