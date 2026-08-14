@@ -5,21 +5,124 @@ Logiciel pour contrôler à distance plusieurs caméras **DJI Osmo Action 5 Pro*
 batterie, le temps restant, l'espace SD et la température — le tout depuis un
 ordinateur (Mac ou PC), avec reconnexion automatique « erreur proof ».
 
-## Télécharger (pas besoin de Python ni de code)
+---
+
+# Guide d'utilisation
+
+*(Cette section ne demande aucune connaissance en programmation. Pour le
+fonctionnement interne et le développement, voir la « Section technique »
+plus bas.)*
+
+## 1. Télécharger et installer
 
 👉 **[Dernière version — github.com/Icydragon1986/Osmo-Controller/releases](https://github.com/Icydragon1986/Osmo-Controller/releases/latest)**
 
-Choisis le fichier pour ton appareil (`OsmoController-Windows.zip` ou
-`OsmoController-Mac.zip`), dézippe-le, double-clique `OsmoController.exe`
-(Windows) ou `OsmoController.app` (Mac — clic droit → Ouvrir la toute première
-fois). Mac uniquement : lance `xattr -cr OsmoController.app` une fois, pendant
-que tu as encore internet, pour que l'app puisse s'ouvrir même sans connexion
-plus tard (voir « Packager en .app » plus bas).
+Choisis le fichier pour ton appareil :
+- **Windows** : `OsmoController-windows.zip`
+- **Mac** : `OsmoController-Mac.zip`
 
-Au tout premier lancement, aucun compte n'existe — voir la section
-« Comptes » plus bas pour en créer un.
+Dézippe-le, puis double-clique `OsmoController.exe` (Windows) ou
+`OsmoController.app` (Mac — clic droit → Ouvrir la toute première fois,
+sinon macOS refuse de l'ouvrir).
 
-## Lancer depuis le code source (pour développer)
+**Mac uniquement**, une seule fois pendant que tu as encore internet, ouvre
+un Terminal et lance :
+```bash
+xattr -cr OsmoController.app
+```
+Ça permet à l'app de s'ouvrir même sans connexion internet plus tard (utile
+en tournoi, sur un Wi-Fi qui ne donne pas accès à internet).
+
+## 2. Premier lancement : créer un compte
+
+Au tout premier lancement, aucun compte n'existe — personne ne peut se
+connecter tant qu'il n'y en a pas au moins un.
+
+- Si le fichier que tu as téléchargé contient déjà un `users.json` (compte
+  préparé à l'avance par quelqu'un de l'équipe), tu peux te connecter
+  directement avec ce compte.
+- Sinon, il faut en créer un depuis un Terminal, une seule fois (voir
+  « Gérer les comptes en ligne de commande » dans la section technique).
+
+Une fois connecté avec un premier compte **admin**, tous les autres comptes
+peuvent être créés/retirés directement depuis l'interface (bouton
+« 👤 Comptes ») — plus besoin de terminal après ça.
+
+Deux types de comptes :
+- **admin** : accès complet (enregistrement, gérer les caméras/comptes,
+  fermer l'app pour tout le monde).
+- **operator** : juste démarrer/arrêter l'enregistrement et voir le statut.
+
+## 3. Se connecter depuis un iPad ou un téléphone
+
+Aucune appli à installer sur l'iPad — Safari suffit. Une fois connecté sur
+l'ordinateur qui pilote les caméras, clique le bouton **« 📶 Connexion
+iPad »** : il affiche deux codes QR à scanner dans l'ordre :
+
+1. Un code QR pour **rejoindre le Wi-Fi** (l'appareil photo native
+   d'iPhone/iPad le reconnaît directement, pas besoin d'ouvrir Safari pour
+   celui-là).
+2. Un code QR pour **ouvrir la page de contrôle**.
+
+Aucune adresse ni mot de passe à taper à la main.
+
+## 4. Pas de Wi-Fi fiable sur place ? Le point d'accès de secours
+
+Si le lieu du tournoi n'a pas de Wi-Fi fiable, l'ordinateur qui pilote les
+caméras peut créer son propre réseau Wi-Fi (comme un routeur maison) — les
+iPad/téléphones s'y connectent à la place, sans avoir besoin d'internet.
+
+- **Sur Windows** : bouton dans la modale « Connexion iPad » pour démarrer/
+  arrêter ce point d'accès directement depuis l'app.
+- **Sur Mac** : à activer manuellement une fois dans Réglages Système
+  (voir « Section technique » pour la marche à suivre détaillée).
+
+## 5. Fermer l'application correctement
+
+Le plus simple : le bouton **« Quitter »** dans l'interface web — il ferme
+la connexion Bluetooth des caméras proprement avant d'arrêter l'app.
+
+Si jamais ce bouton est oublié, l'app se ferme quand même correctement dans
+la plupart des cas :
+- **Windows** : fermer la fenêtre (le X), fermer la session ou éteindre le
+  PC déclenche automatiquement la même déconnexion propre.
+- **Mac** : l'app packagée n'a ni Dock ni fenêtre — utilise l'icône
+  **« Osmo »** dans la barre de menu (en haut de l'écran) → Quitter. En
+  tout dernier recours, **Moniteur d'activité → OsmoController → Quitter**
+  (pas « Forcer à quitter », qui ne laisse aucune chance de déconnecter les
+  caméras).
+
+## 6. Limites à connaître
+
+- **Une seule caméra en même temps par contrôleur** : la caméra n'accepte
+  qu'**un** appareil connecté en Bluetooth. Si le téléphone de quelqu'un est
+  encore associé à la caméra (même sans l'app Mimo ouverte), coupe son
+  Bluetooth avant de connecter Osmo Controller.
+- **Portée Bluetooth** : l'ordinateur qui pilote les caméras doit rester
+  physiquement à portée Bluetooth de chaque caméra (environ 10-30 m selon
+  les obstacles) pendant tout l'enregistrement — le Wi-Fi ne contourne pas
+  cette limite. Sur Mac, cette portée est plus courte que sur PC et ne peut
+  pas être améliorée avec un accessoire externe (limite du système
+  d'Apple, pas du logiciel). Si les terrains sont trop éloignés pour qu'un
+  seul poste les couvre tous, plusieurs postes peuvent être nécessaires.
+- **Connexion non chiffrée (HTTP)** : sur le réseau Wi-Fi local, quelqu'un
+  qui écoute activement ce même réseau pourrait techniquement intercepter
+  un mot de passe. Risque réel mais faible sur un Wi-Fi de tournoi
+  (demande un attaquant actif sur le même réseau, pas juste quelqu'un à
+  proximité).
+- **Réveil à distance d'une caméra éteinte** : impossible. Une caméra
+  Osmo qui s'éteint automatiquement fait un vrai arrêt, pas une mise en
+  veille — rien ne peut la rallumer à distance. Le mieux est d'ajuster le
+  délai d'arrêt automatique directement dans les réglages de la caméra.
+
+---
+
+# Section technique (développement)
+
+*(Tout ce qui suit s'adresse à quelqu'un qui développe, build ou dépanne le
+logiciel — pas nécessaire pour l'utiliser en tournoi.)*
+
+## Lancer depuis le code source
 
 - **Windows** : `Lancer Osmo Controller.bat` (réel) / `Demo (simulation).bat`
 - **Mac** : `Lancer Osmo Controller.command` (réel) / `Demo (simulation).command`
@@ -54,7 +157,7 @@ temps restant, température) et enregistrement à distance. ⚠️ La caméra n'
 qu'**un** contrôleur : coupe le Bluetooth du téléphone (fermer l'app Mimo ne
 suffit pas).
 
-## Accès depuis un iPad (ou tout appareil sur le même Wi-Fi)
+## Accès depuis un iPad — détails techniques
 
 Aucune appli native n'est nécessaire — Safari sur iPad ne supporte pas le
 Bluetooth de toute façon (Apple ne l'implémente pas). À la place, le PC/laptop
@@ -62,7 +165,7 @@ qui contrôle déjà les caméras en Bluetooth sert de relais : les autres
 appareils (iPad, téléphone…) ouvrent simplement la page web du PC par le
 Wi-Fi — ils ne font jamais de Bluetooth eux-mêmes.
 
-**1. Comptes** (`users.json`, à la racine — jamais de mot de passe en clair,
+**Comptes** (`users.json`, à la racine — jamais de mot de passe en clair,
 haché avec PBKDF2). Deux façons de les gérer :
 
 - **Depuis l'interface** (bouton « 👤 Comptes », admin seulement) : liste des
@@ -80,16 +183,6 @@ haché avec PBKDF2). Deux façons de les gérer :
   python manage_users.py remove coach1
   ```
 
-Deux rôles :
-- **admin** : tout (enregistrement, gérer les caméras/comptes, quitter l'app).
-- **operator** : juste démarrer/arrêter l'enregistrement et voir le statut —
-  ne peut pas scanner/ajouter/retirer de caméra, gérer les comptes, ni fermer
-  l'app pour tout le monde.
-
-Si aucun compte n'existe, l'app le rappelle au démarrage et personne ne peut
-se connecter tant que tu n'en as pas ajouté au moins un (par CLI la première
-fois, forcément — sans compte, impossible d'atteindre le bouton).
-
 **Partager les mêmes comptes entre plusieurs machines** (ton PC, un Mac, un
 autre laptop…) : `users.json` est local à chaque installation, il n'est pas
 synchronisé automatiquement. Le plus simple est de **copier ton fichier
@@ -101,25 +194,23 @@ au moment du build (voir sections packaging plus bas), pour que la personne
 qui reçoit l'app puisse se connecter directement, sans jamais toucher à un
 terminal.
 
-**2. Rendre le PC accessible sur le réseau** : lance avec `--host 0.0.0.0`
+**Rendre le PC accessible sur le réseau** : lance avec `--host 0.0.0.0`
 (déjà fait dans `Lancer Osmo Controller.bat`/`.command`). Le PC affiche alors
 dans sa console les adresses à utiliser (ex. `http://10.0.0.212:8765/`) —
 tape-la dans Safari sur l'iPad, puis « Ajouter à l'écran d'accueil » pour une
 icône comme une vraie appli.
 
-**3. Encore plus simple : le bouton « 📶 Connexion iPad »** — une fois connecté
-sur le PC, ce bouton affiche :
+**Le bouton « 📶 Connexion iPad »** affiche :
 - un code QR **« rejoindre le Wi-Fi »** (format `WIFI:`, reconnu par
   l'appareil photo native d'iOS/Android — pas besoin de Safari pour celui-là) ;
 - puis un code QR **par adresse réseau détectée** pour ouvrir la page.
 
-Scanner les deux, dans l'ordre, connecte l'iPad sans jamais taper une adresse
-ni un mot de passe Wi-Fi à la main. Nécessite `pip install qrcode` sur le PC
-(sinon le reste de l'app fonctionne quand même, juste sans ce bouton).
+Nécessite `pip install qrcode` sur le PC (sinon le reste de l'app fonctionne
+quand même, juste sans ce bouton).
 
 Le QR Wi-Fi vient de trois sources, dans cet ordre de priorité :
-1. **Le point d'accès du PC, s'il est actif** (voir bouton hotspot ci-dessous)
-   — c'est la vérité du terrain, il prime sur tout le reste.
+1. **Le point d'accès du PC, s'il est actif** (voir hotspot ci-dessous) —
+   c'est la vérité du terrain, il prime sur tout le reste.
 2. **Une config manuelle** (rare, pour un cas particulier) :
    ```bash
    python manage_wifi.py set MonHotspot motdepasse123
@@ -128,15 +219,14 @@ Le QR Wi-Fi vient de trois sources, dans cet ordre de priorité :
    ```
 3. **Le Wi-Fi normal du lieu**, détecté automatiquement (`netsh`) s'il est connecté.
 
-**4. Encore mieux : démarrer/arrêter le point d'accès du PC depuis l'appli**
-(bouton admin dans la modale « Connexion iPad »). Contrairement à ce que je
-pensais au départ, Windows expose bien une API pour ça
+**Démarrer/arrêter le point d'accès du PC depuis l'appli** (bouton admin
+dans la modale « Connexion iPad »). Windows expose une API pour ça
 (`NetworkOperatorTetheringManager` — le paquet s'appelle
-`winrt-Windows.Networking.NetworkOperators`, au PLURIEL, une coquille de ma
-part m'avait fait croire le contraire) : le PC peut configurer, démarrer et
-arrêter son propre hotspot sans jamais ouvrir les Réglages Windows. **Vérifié
-réellement** : démarrage confirmé (adresse `192.168.137.1` active), lecture
-du SSID/mot de passe réels, arrêt propre, à répétition.
+`winrt-Windows.Networking.NetworkOperators`, au PLURIEL) : le PC peut
+configurer, démarrer et arrêter son propre hotspot sans jamais ouvrir les
+Réglages Windows. **Vérifié réellement** : démarrage confirmé (adresse
+`192.168.137.1` active), lecture du SSID/mot de passe réels, arrêt propre,
+à répétition.
 
 ```bash
 pip install "winrt-Windows.Networking.NetworkOperators" "winrt-Windows.Networking.Connectivity"
@@ -158,12 +248,6 @@ cette fonctionnalité (fréquent sur du matériel récent, vérifiable avec
 `netsh wlan show drivers`, ligne « Réseau hébergé pris en charge »), le bouton
 renverra une erreur claire plutôt que d'échouer en silence.
 
-**5. Sans Wi-Fi de tournoi fiable** : le PC peut créer son propre point d'accès
-Wi-Fi (hotspot), sans avoir besoin d'internet — c'est un réseau local comme un
-routeur maison, les appareils s'y voient entre eux même hors ligne. Tout le
-monde (y compris le PC lui-même, si besoin) s'y connecte à la place ; ça reste
-un seul réseau, un seul PC-relais.
-
 **Sur Mac** : pas de bouton hotspot automatique (Apple n'expose aucune API/CLI
 publique pour "Internet Sharing" — contrairement à Windows). La marche à
 suivre :
@@ -182,19 +266,6 @@ n'a aucun accès au Bluetooth bas niveau que `bleak` utilise — ce n'est pas un
 histoire de permission mais une limite d'iOS. Une appli native (Swift) pourrait
 le faire, mais redemande un Mac + une réécriture complète du protocole ; **un
 seul PC/laptop suffit pour toute l'équipe**, pas besoin d'un par personne.
-
-⚠️ **Limite connue** : la connexion se fait en HTTP simple (pas HTTPS) sur le
-réseau local — quelqu'un qui écoute activement ce même réseau pourrait
-intercepter un mot de passe ou une session. Sur un Wi-Fi de tournoi partagé,
-c'est un risque réel mais faible (ça demande un attaquant actif sur le même
-réseau, pas juste quelqu'un « à portée »). Passer en HTTPS demanderait de
-gérer des certificats — pas fait pour l'instant.
-
-⚠️ **Portée Bluetooth** : le PC doit rester physiquement à portée BLE de
-chaque caméra (environ 10-30 m selon les obstacles) pendant tout
-l'enregistrement — ça ne se contourne pas par le Wi-Fi. Si les terrains sont
-trop éloignés pour qu'un seul PC les couvre tous, il en faudra plusieurs
-(chacun avec sa propre config/comptes) ; à valider sur le terrain.
 
 ## Démo sans matériel (mode simulation)
 
@@ -225,6 +296,7 @@ python test_manager.py      # gestion multi-caméras
 python test_updater.py      # mise à jour automatique (manifeste + zip)
 python test_auth.py         # comptes/sessions (hachage, rôles, expiration)
 python test_wifi_info.py    # code QR Wi-Fi (format, échappement, détection)
+python test_wake_broadcast.py  # diffusion BLE (réveil caméra, non branché dans l'app)
 ```
 
 Aucune dépendance externe : tout utilise la bibliothèque standard de Python 3.
@@ -246,38 +318,46 @@ retélécharge que le code, jamais l'environnement.
    plus récente et, si oui, la télécharge + vérifie son **SHA-256** + la met
    en attente (`app.next`) pour le **prochain** démarrage.
 
-Seul `app/` est remplacé par une mise à jour — `cameras.json` et
-`update_config.json` restent à la racine, à côté de `launcher.py`, donc rien
-n'est perdu.
+Seul `app/` est remplacé par une mise à jour — `cameras.json`, `users.json`,
+`wifi_config.json` et `update_config.json` restent à la racine, à côté de
+`launcher.py`, donc rien n'est perdu.
 
 **Configuration** (`update_config.json`, à la racine) :
 
 ```json
-{ "manifest_url": "https://raw.githubusercontent.com/<user>/<repo>/main/manifest.json" }
+{ "manifest_url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/manifest.json" }
 ```
 
-`manifest_url` absent ou `null` = vérification désactivée (c'est l'état par
-défaut du dépôt tant qu'il n'y a pas encore de dépôt GitHub public). Si le
-manifeste est injoignable (pas de Wi-Fi, mauvaise URL…), l'app continue de
-fonctionner normalement — l'échec est seulement journalisé dans la console.
+Si le manifeste est injoignable (pas de Wi-Fi, mauvaise URL…), l'app continue
+de fonctionner normalement — l'échec est seulement journalisé dans la console.
 
-Le dossier `releases/` du dépôt contient `manifest.json` + le zip de chaque
-version publiée (juste le contenu de `app/`, testé de bout en bout — téléchargement,
-vérification SHA-256, application — contre ces vrais fichiers). Pas besoin de
-GitHub Releases : un simple `git push` avec ces fichiers suffit, servis ensuite
-via `raw.githubusercontent.com`.
+**Deux mécanismes de distribution séparés, ne pas confondre :**
+- **`releases/` du dépôt** (`manifest.json` + un zip par version, juste le
+  contenu de `app/`) — c'est ce que `launcher.py` vérifie tout seul en
+  arrière-plan pour les installations déjà en place. Servi directement via
+  `raw.githubusercontent.com`, pas besoin de GitHub Releases pour ça.
+- **GitHub Releases** (page publique, zips complets `.exe`/`.app`) — c'est ce
+  vers quoi pointe la section « Télécharger » tout en haut, pour quelqu'un
+  qui n'a encore rien installé.
 
-**Reste à faire, de ton côté (compte/dépôt GitHub — je ne peux pas le faire à
-ta place)** :
-1. créer un dépôt GitHub **public** (ex. nom `Osmo-Controller`) ;
-2. me dire son URL pour que je fasse `git push` (avec ta confirmation) ;
-3. mettre l'URL brute du manifeste
-   (`https://raw.githubusercontent.com/<toi>/<repo>/main/releases/manifest.json`)
-   dans `update_config.json` — je peux le faire une fois l'URL connue.
+**Couper une nouvelle version, étape par étape :**
+1. Bumper `VERSION` dans `app/osmo_controller/version.py`.
+2. `python make_release.py X.Y.Z --notes "..."` — construit
+   `releases/osmo-X.Y.Z.zip` + met à jour `releases/manifest.json` (pour
+   l'auto-update silencieuse des installations existantes).
+3. Rebuild `dist/OsmoController` (voir sections packaging plus bas), zipper
+   le dossier complet.
+4. `gh release create vX.Y.Z chemin/vers/OsmoController-windows.zip --title "..." --notes "..."`
+   (et pareil côté Mac avec `OsmoController-Mac.zip`, depuis une machine Mac)
+   — pour la page GitHub Releases publique.
+5. Commit + push `releases/`, `app/osmo_controller/version.py`.
 
-À chaque nouvelle version ensuite : zipper le contenu de `app/` dans
-`releases/osmo-X.Y.Z.zip`, recalculer son SHA-256, mettre à jour
-`releases/manifest.json` (version/url/sha256), commit + push.
+`make_release.py` existe spécifiquement parce que zipper `app/` à la main
+(Compress-Archive PowerShell, Explorateur Windows…) stocke parfois les
+chemins avec des antislashs au lieu de `/` — invisible sur Windows, mais ça
+casse totalement l'extraction sur macOS/Linux (`ModuleNotFoundError` au
+démarrage, vécu en prod). Le script force toujours `/`, peu importe la
+plateforme utilisée pour couper la release.
 
 ## Packager en .exe (Windows)
 
@@ -296,6 +376,16 @@ Python + `bleak`/`winrt`. Ce qui reste à côté, en `.py` non compilé, et que
 l'auto-update peut remplacer sans rebuild : `app/` (tout le code de l'app).
 **Vérifié sur ce poste** : simulation, mode réel (scan BLE réel a bien trouvé
 BCC-3), et fermeture propre — tous fonctionnent depuis l'exe construit.
+
+⚠️ **Si tu oublies le bouton « Quitter » de l'interface web** : fermer la
+fenêtre (le X), fermer la session Windows ou éteindre le PC déclenche quand
+même la déconnexion Bluetooth propre avant que Windows ne tue le processus
+(`SetConsoleCtrlHandler`, capte `CTRL_CLOSE_EVENT`/`CTRL_LOGOFF_EVENT`/
+`CTRL_SHUTDOWN_EVENT` — aucun de ces trois événements n'est couvert par le
+module `signal` standard de Python sur Windows). Limite honnête : Windows ne
+laisse qu'environ 5 secondes avant de forcer la fermeture, donc avec
+plusieurs caméras encore connectées au moment de fermer, la déconnexion
+propre n'est pas garantie à 100 %, juste bien plus probable qu'avant.
 
 **macOS (`.app`)** : pas faisable depuis Windows, PyInstaller ne fait pas de
 compilation croisée. Voir la section dédiée ci-dessous.
@@ -322,11 +412,9 @@ reste à côté, non compilé, et que l'auto-update peut remplacer sans rebuild 
 **Vérifié sur matériel réel** (Mac + caméra BCC-3) : double-clic Finder (pas
 de blocage Gatekeeper — le build est fait localement, pas de quarantaine ;
 sur une AUTRE machine où l'app a été téléchargée/copiée, clic droit > Ouvrir
-la première fois si macOS refuse), pas de fenêtre console visible (c'est
-`--windowed`, volontaire — sinon PyInstaller ne produit pas un vrai `.app` du
-tout sur macOS), navigateur ouvert automatiquement, mode simulation, mode réel
-(connexion, statut en direct, démarrage/arrêt d'enregistrement, fermeture
-propre via « Quitter »).
+la première fois si macOS refuse), navigateur ouvert automatiquement, mode
+simulation, mode réel (connexion, statut en direct, démarrage/arrêt
+d'enregistrement, fermeture propre via « Quitter »).
 
 ⚠️ **Vécu en compétition : l'app refuse de s'ouvrir sans connexion internet,
 sur une machine où elle vient d'être copiée/transférée.** Cause : la
@@ -356,15 +444,17 @@ app stapled se vérifie 100% localement, pour toujours, même au tout premier
 lancement sur une machine neuve. Pas fait actuellement.
 
 ⚠️ **Si tu oublies le bouton « Quitter » de l'interface web** : l'app
-packagée (`--windowed`) n'a ni icône Dock ni barre de menu — rien à fermer,
-rien sur quoi faire Cmd+Q. Le seul moyen de l'arrêter proprement est
-**Moniteur d'activité → sélectionner OsmoController → Quitter** (pas
-« Forcer à quitter », qui ne laisse aucune chance de déconnecter les caméras
-proprement — vrai aussi côté Windows). Fermer une fenêtre de Terminal si tu
-lances l'app en ligne de commande déclenche déjà une déconnexion propre
-automatique (testé sur matériel réel).
+packagée (`--windowed`) n'a ni Dock ni fenêtre classique — une icône
+**« Osmo »** dans la barre de menu (« Ouvrir l'interface » / « Quitter »)
+sert de filet de secours en tout temps pendant que l'app tourne. Re-cliquer
+sur l'app dans le Finder/Dock la réactive et rouvre l'interface au lieu de ne
+rien faire de visible. En tout dernier recours : **Moniteur d'activité →
+OsmoController → Quitter** (pas « Forcer à quitter », qui ne laisse aucune
+chance de déconnecter les caméras proprement — vrai aussi côté Windows).
+Fermer une fenêtre de Terminal si tu lances l'app en ligne de commande
+déclenche aussi une déconnexion propre automatique (`SIGHUP`).
 
-Trois pièges macOS trouvés et corrigés en cours de route (aucun n'existe côté
+Quatre pièges macOS trouvés et corrigés en cours de route (aucun n'existe côté
 Windows) :
 1. **Permission Bluetooth par app** : chaque `.app` (identité/signature
    distincte) a sa propre entrée dans Réglages Système → Confidentialité et
@@ -388,6 +478,16 @@ Windows) :
    `_connected_event`) en créant ces `Event` au moment de `connect()`/`start()`
    plutôt que dans `__init__`. Les exceptions de connexion sont maintenant
    journalisées (`  [nom] connexion échouée : ...`) au lieu d'être avalées.
+4. **AppKit exige le vrai thread principal** : une icône de barre de menu
+   (`NSStatusItem`) lancée depuis un thread à part plante. L'app tourne donc
+   à l'envers de d'habitude sur Mac — `asyncio` (BLE + serveur web) roule
+   dans un thread à part, pendant que le thread principal fait tourner la
+   boucle `NSApplication`. Les signaux système, livrés par l'OS uniquement au
+   thread principal, y sont enregistrés puis relayés vers l'arrêt propre une
+   fois qu'asyncio est prêt. Un timer périodique sans effet évite aussi que
+   la boucle AppKit (bloquante, en code natif) n'affame la livraison de ces
+   signaux — sans lui, un SIGTERM restait enregistré mais ne se déclenchait
+   jamais.
 
 ## Architecture
 
@@ -395,6 +495,7 @@ Windows) :
 launcher.py            <- racine, ne change quasiment jamais (mises à jour + démarrage)
 manage_users.py          <- racine, CLI pour gérer les comptes (users.json)
 manage_wifi.py           <- racine, CLI pour la config Wi-Fi du hotspot (wifi_config.json)
+make_release.py          <- racine, coupe une release (zip + manifest.json)
 cameras.json             <- config, survit aux mises à jour
 users.json               <- comptes (mots de passe hachés), survit aux mises à jour
 wifi_config.json         <- config Wi-Fi hotspot (optionnelle), survit aux mises à jour
@@ -419,81 +520,47 @@ app/                     <- REMPLACÉ à chaque mise à jour
 | `wifi_info.py` | Détection/config Wi-Fi + génération du payload QR `WIFI:` |
 | `hotspot.py` | Démarrer/arrêter le point d'accès Wi-Fi du PC (Windows seulement ; repli réseau hébergé si aucune connexion à partager) |
 | `updater.py` | Mise à jour automatique (manifeste, téléchargement, échange de dossiers) |
+| `wake_broadcast.py` | Diffusion BLE pour tenter de réveiller une caméra (piste explorée, non branchée dans l'app) |
 
 Le découplage clé : `connection.py` parle à une interface `Transport`
 abstraite. `SimulatedTransport` pour la démo, `BleakTransport` pour le vrai
 matériel — le reste de la pile ne change pas selon le transport utilisé.
 
-## Reste à faire
+## État du projet / reste à faire
 
-- **Transport BLE réel, appairage, device_id** : faits et **prouvés sur
-  caméra physique** (voir `bleak_transport.py`).
-- Valider **3+ caméras en BLE simultané** (testé jusqu'à présent avec 1).
-- **Support Mac** : FAIT et **vérifié réellement** sur une vraie machine Mac +
-  vraie caméra (BCC-3). Séquence complète validée avec `hardware/scan_ble.py`
-  puis `hardware/real_camera_test.py` : scan (caméra trouvée via son UUID
-  CoreBluetooth + service 0xFFF0), connexion sans popup, statut en direct
-  (batterie, capacité SD, température), démarrage/arrêt d'un enregistrement
-  réel, déconnexion propre. ⚠️ Point d'attention macOS découvert au passage :
-  Terminal.app (ou l'app qui lance Python) doit avoir la permission
-  Bluetooth activée dans Réglages Système → Confidentialité et sécurité →
-  Bluetooth, sinon bleak échoue avec l'erreur trompeuse « Bluetooth device is
-  turned off » même quand le Bluetooth est bien actif.
-- **Mise à jour automatique** : FAIT et branché (`launcher.py`), dépôt GitHub
-  public en place et vérifié en conditions réelles (voir section ci-dessus).
-- **Packaging** : `.exe` Windows fait et vérifié (voir section ci-dessus,
-  `build_launcher.bat`). `.app` macOS : FAIT et **vérifié réellement**
-  (`build_launcher_mac.sh` — voir section « Packager en .app (macOS) »
-  ci-dessus) — double-clic Finder, simulation, mode réel avec BCC-3
-  (connexion, statut, enregistrement, fermeture propre). Au passage, deux
-  bugs de fond corrigés dans `bleak_transport.py`/`connection.py` (des
-  `asyncio.Event()` créés hors de la bonne boucle asyncio) — invisibles avant
-  parce que l'exception était silencieusement avalée ; les erreurs de
-  connexion sont maintenant journalisées.
-- **Accès iPad + comptes + code QR** : FAIT (voir section « Accès depuis un
-  iPad » ci-dessus) — relais Wi-Fi vers le PC, comptes admin/operator, bouton
-  QR pour se connecter sans taper d'adresse. Testé (curl + navigateur réel) :
-  connexion, restrictions de rôle (403 pour un operator qui tente scan/quit),
-  déconnexion, session expirée, QR scanné avec succès. Deux bugs trouvés par
-  Jonathan en test réel, corrigés : `--host 0.0.0.0` faisait planter
-  l'ouverture du navigateur, et un traceback inoffensif s'affichait à la
-  déconnexion brutale d'un appareil.
-- **Hotspot du PC démarrable/arrêtable depuis l'appli** : FAIT et **vérifié
-  réellement** avec une connexion à partager (démarrage confirmé, adresse
-  `192.168.137.1` active, arrêt propre, à répétition) — voir section
-  ci-dessus. Windows seulement.
-  **Cas "machine SANS AUCUNE connexion réseau du tout"** : vécu en tournoi —
-  le Mobile Hotspot Windows refuse de démarrer sans connexion à partager,
-  même si rien de plus n'est requis pour les appareils qui rejoignent le
-  hotspot. Un repli sur le réseau hébergé legacy (`netsh wlan
-  hostednetwork`, ne dépend d'aucune connexion existante) a été ajouté côté
-  code — **pas encore validé sur du matériel réel en offline complet**,
-  ni le support du pilote Wi-Fi utilisé en tournoi. À tester avant de
-  compter dessus en compétition.
-  **Reste à valider en vrai tournoi** : portée BLE d'un PC pour plusieurs
-  terrains (peut-être plusieurs PC nécessaires).
-  Si tu reconstruis le `.exe` (`build_launcher.bat`), ajoute
-  `--collect-all qrcode --collect-all winrt` pour que les boutons QR et
-  hotspot fonctionnent aussi depuis l'exe (pas encore fait dans le build actuel).
-- **Vérification du cadrage (aperçu vidéo)** : mise en pause (bouton « à venir »,
-  désactivé). Le flux vidéo sans fil (RTMP par WiFi) demande un gros travail de
-  reverse-engineering non résolu ; à reprendre plus tard.
-- **Réveil à distance depuis la veille** : EN COURS, 2 hypothèses testées.
-  1. ❌ **Réfutée par Jonathan sur matériel réel** : renvoyer `power_mode=0`
-     (`build_power_mode_command` / `hardware/wake_test.py`) sur la connexion
-     existante NE réveille PAS la caméra (elle se met bien en veille, mais
-     ne se réveille pas).
-  2. 🧪 **Nouvelle piste, pas encore testée sur matériel** : la doc officielle
-     DJI (`Q&A.md` + « Camera Power Mode Settings (001A) » du SDK) décrit en
-     fait un mécanisme différent — le PC doit **diffuser** (broadcast) un
-     paquet BLE spécial `"WKP" + adresse MAC de la caméra inversée` pendant
-     ~2 s (la caméra le capte même en veille), PUIS **reconnecter** (le lien
-     BLE se coupe pendant la veille, selon la doc). Conditions DJI : s'être
-     connecté à cette caméra récemment, et veille de moins de 30 minutes.
-     Implémenté dans `wake_broadcast.py` (`broadcast_wake`, via
-     `winrt-Windows.Devices.Bluetooth.Advertisement` — déjà présent, c'est
-     une dépendance de `bleak` sur Windows) + testable avec
-     `python hardware/wake_broadcast_test.py`. **Vérifié seulement que l'API
-     de diffusion fonctionne sans erreur** (démarré/arrêté avec succès) ;
-     **pas encore testé contre la vraie caméra** (hors de portée). Rien
-     n'est branché dans l'app tant que ce n'est pas confirmé.
+**Fait et vérifié sur matériel réel** : transport BLE réel, appairage,
+support Mac ET Windows, mise à jour automatique, packaging `.exe`/`.app`,
+accès iPad + comptes + codes QR, hotspot Windows démarrable depuis l'app,
+distribution via GitHub Releases, arrêt idiot-proof (Windows et Mac) même en
+cas de fenêtre fermée/session fermée/PC éteint sans cliquer « Quitter »,
+correction du double-lancement quand une instance était restée à l'écran de
+connexion.
+
+**Connu, pas encore réglé :**
+- **Portée Bluetooth limitée sur Mac** : le radio interne des Mac a une
+  portée plus courte que sur PC, et macOS n'accepte pas d'adaptateur
+  Bluetooth externe pour l'améliorer (limite du système, pas du logiciel).
+  Sur PC, un dongle USB Class 1 réglerait ça facilement — pas encore testé.
+  Une piste à plus long terme (théorique, pas encore essayée) : un petit
+  ordinateur dédié (type Raspberry Pi, qui accepte lui les adaptateurs
+  Bluetooth externes via Linux) placé près d'un terrain, servant de
+  relais/poste de contrôle pour cette caméra.
+- **Plusieurs caméras simultanées** : testé jusqu'à présent avec **une
+  seule** caméra en conditions réelles (à la maison et à l'INS). Le
+  contrôle de plusieurs caméras en même temps n'a pas encore été validé
+  sur du vrai matériel.
+- **Sécurité réseau** : connexion en HTTP simple (pas HTTPS) sur le réseau
+  local — passer en HTTPS demanderait de gérer des certificats, pas fait
+  pour l'instant. Risque jugé réel mais faible sur un Wi-Fi de tournoi.
+- **Réveil à distance depuis la veille** : confirmé **impossible**. Une
+  caméra Osmo qui s'éteint après inactivité fait un vrai arrêt (pas une
+  mise en veille BLE-aware) — aucune commande ni diffusion Bluetooth ne
+  peut la rallumer à distance, vérifié avec deux approches différentes sur
+  matériel réel (renvoi de `power_mode=0`, puis diffusion BLE `"WKP"` +
+  reconnexion selon la doc officielle DJI). Même l'app Mimo officielle de
+  DJI échoue à réveiller la caméra dans ce cas. La seule vraie mitigation
+  est d'ajuster le délai d'arrêt automatique dans les réglages de la
+  caméra elle-même.
+- **Vérification du cadrage (aperçu vidéo)** : mis en pause. Le flux vidéo
+  sans fil (RTMP par Wi-Fi) demande un gros travail de reverse-engineering
+  non résolu.
