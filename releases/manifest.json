@@ -1,6 +1,6 @@
 {
-  "version": "0.17.3",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.17.3.zip",
-  "sha256": "b146c68789f7fa94fabc1cba15082c2b312ab9007839551da4ffb2b1dd7e24fd",
-  "notes": "Compte admin/admin cree automatiquement au premier lancement si users.json est vide (au lieu de bloquer en attendant une creation manuelle via terminal). Change ce mot de passe des la premiere connexion si le PC est accessible sur un reseau partage."
+  "version": "0.17.4",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.17.4.zip",
+  "sha256": "64710deb2d23a47d98abd9cc3b9ef59d55d6853f92c8ff6bbc40e9247790d9b1",
+  "notes": "admin/admin est maintenant un acces de secours permanent : fonctionne toujours pour se connecter, quel que soit le contenu de users.json, et ne peut pas etre modifie/supprime via le menu Comptes. Avant, il n'etait cree qu'une fois si users.json etait vide et disparaissait ensuite comme un compte normal."
 }
