@@ -4,4 +4,4 @@
 pied de page du site si la bonne version est chargée.
 """
 
-VERSION = "0.17.3"
+VERSION = "0.17.4"
