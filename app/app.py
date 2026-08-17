@@ -37,7 +37,7 @@ from pathlib import Path
 from osmo_controller.manager import CameraManager
 from osmo_controller.sim_transport import SimulatedTransport
 from osmo_controller.simulator import OsmoCameraSimulator
-from osmo_controller import auth, webserver
+from osmo_controller import webserver
 from osmo_controller.webserver import local_network_urls
 
 # Quelques états de départ variés pour rendre la démo parlante.
@@ -395,11 +395,10 @@ def run(argv=None) -> int:
     if not users_path.exists():
         users_path.write_text("{}\n", encoding="utf-8")
     if not json.loads(users_path.read_text(encoding="utf-8")):
-        # Bootstrap : compte admin par défaut pour ne pas rester bloqué sans
-        # accès. À changer immédiatement (menu Comptes) sur un réseau partagé.
-        auth.add_user(users_path, "admin", "admin", role="admin")
-        print("⚠ Aucun compte configuré — compte par défaut créé : admin / admin")
-        print("  Change ce mot de passe dès la connexion (menu « 👤 Comptes »).")
+        # admin/admin fonctionne toujours (voir auth.authenticate) : pas
+        # besoin de créer de compte pour débloquer le tout premier accès.
+        print("⚠ Aucun compte configuré — connecte-toi avec admin / admin,")
+        print("  puis crée de vrais comptes depuis le menu « 👤 Comptes ».")
 
     admin = None
     if args.real:

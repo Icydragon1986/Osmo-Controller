@@ -38,14 +38,19 @@ en tournoi, sur un Wi-Fi qui ne donne pas accès à internet).
 - Si le fichier que tu as téléchargé contient déjà un `users.json` (compte
   préparé à l'avance par quelqu'un de l'équipe), tu peux te connecter
   directement avec ce compte.
-- Sinon, au tout premier lancement, l'app crée automatiquement un compte
-  **admin / admin** — connecte-toi avec ces identifiants, puis **change
-  immédiatement ce mot de passe** (bouton « 👤 Comptes ») si le PC est
-  accessible sur un Wi-Fi partagé.
+- Sinon, connecte-toi avec **admin / admin** — ce compte fonctionne toujours,
+  sur toute installation, même une fois d'autres comptes créés.
 
 Une fois connecté, tous les autres comptes peuvent être créés/retirés
 directement depuis l'interface (bouton « 👤 Comptes ») — jamais besoin de
 terminal.
+
+⚠️ **admin / admin est un accès de secours permanent, pas un vrai compte** :
+il ne peut ni être changé ni supprimé, même depuis le menu Comptes, et
+fonctionne sur toute copie de l'app (le code est public sur GitHub). Sur un
+PC exposé sur le réseau (`--host 0.0.0.0`, voir plus bas), n'importe qui sur
+ce réseau peut s'en servir pour se connecter en admin — à garder en tête
+pendant un tournoi sur un Wi-Fi partagé.
 
 Deux types de comptes :
 - **admin** : accès complet (enregistrement, gérer les caméras/comptes,
@@ -182,12 +187,13 @@ haché avec PBKDF2). Deux façons de les gérer :
   python manage_users.py remove coach1
   ```
 
-Si aucun compte n'existe au démarrage, l'app crée automatiquement un compte
-par défaut **admin / admin** (rôle admin) pour ne jamais rester bloqué sans
-accès — voir « Premier lancement » dans le guide plus haut. **Change son mot
-de passe dès la première connexion** (bouton « 👤 Comptes ») si le PC est
-accessible sur le réseau (Wi-Fi partagé) — sinon n'importe qui sur le même
-réseau peut se connecter avec ces identifiants.
+**admin / admin fonctionne toujours**, codé en dur dans `auth.authenticate()`
+(`app/osmo_controller/auth.py`) — indépendant du contenu de `users.json`, pas
+listé dans `/api/users`, ne peut pas être retiré via `remove_user`. C'est un
+accès de secours volontaire pour ne jamais rester bloqué, voir « Premier
+lancement » dans le guide plus haut pour l'avertissement de sécurité associé
+(le code étant public, ce compte est un accès permanent connu de tous sur
+toute installation exposée sur le réseau).
 
 **Partager les mêmes comptes entre plusieurs machines** (ton PC, un Mac, un
 autre laptop…) : `users.json` est local à chaque installation, il n'est pas

