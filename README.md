@@ -35,18 +35,17 @@ en tournoi, sur un Wi-Fi qui ne donne pas accès à internet).
 
 ## 2. Premier lancement : créer un compte
 
-Au tout premier lancement, aucun compte n'existe — personne ne peut se
-connecter tant qu'il n'y en a pas au moins un.
-
 - Si le fichier que tu as téléchargé contient déjà un `users.json` (compte
   préparé à l'avance par quelqu'un de l'équipe), tu peux te connecter
   directement avec ce compte.
-- Sinon, il faut en créer un depuis un Terminal, une seule fois (voir
-  « Gérer les comptes en ligne de commande » dans la section technique).
+- Sinon, au tout premier lancement, l'app crée automatiquement un compte
+  **admin / admin** — connecte-toi avec ces identifiants, puis **change
+  immédiatement ce mot de passe** (bouton « 👤 Comptes ») si le PC est
+  accessible sur un Wi-Fi partagé.
 
-Une fois connecté avec un premier compte **admin**, tous les autres comptes
-peuvent être créés/retirés directement depuis l'interface (bouton
-« 👤 Comptes ») — plus besoin de terminal après ça.
+Une fois connecté, tous les autres comptes peuvent être créés/retirés
+directement depuis l'interface (bouton « 👤 Comptes ») — jamais besoin de
+terminal.
 
 Deux types de comptes :
 - **admin** : accès complet (enregistrement, gérer les caméras/comptes,
@@ -182,6 +181,13 @@ haché avec PBKDF2). Deux façons de les gérer :
   python manage_users.py list
   python manage_users.py remove coach1
   ```
+
+Si aucun compte n'existe au démarrage, l'app crée automatiquement un compte
+par défaut **admin / admin** (rôle admin) pour ne jamais rester bloqué sans
+accès — voir « Premier lancement » dans le guide plus haut. **Change son mot
+de passe dès la première connexion** (bouton « 👤 Comptes ») si le PC est
+accessible sur le réseau (Wi-Fi partagé) — sinon n'importe qui sur le même
+réseau peut se connecter avec ces identifiants.
 
 **Partager les mêmes comptes entre plusieurs machines** (ton PC, un Mac, un
 autre laptop…) : `users.json` est local à chaque installation, il n'est pas
