@@ -1,6 +1,6 @@
 {
-  "version": "0.17.2",
-  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.17.2.zip",
-  "sha256": "573f7da10d6130f32cdc5057ff36262bf31b76a001923dac014631b6a0da6dab",
-  "notes": "Corrige le double-lancement meme a l'ecran de login (already_running() traitait le 401 non-authentifie comme aucune instance). Mac : reactivation par re-clic rouvre l'interface, icone de barre de menu qui restait invisible corrigee."
+  "version": "0.17.3",
+  "url": "https://raw.githubusercontent.com/Icydragon1986/Osmo-Controller/main/releases/osmo-0.17.3.zip",
+  "sha256": "b146c68789f7fa94fabc1cba15082c2b312ab9007839551da4ffb2b1dd7e24fd",
+  "notes": "Compte admin/admin cree automatiquement au premier lancement si users.json est vide (au lieu de bloquer en attendant une creation manuelle via terminal). Change ce mot de passe des la premiere connexion si le PC est accessible sur un reseau partage."
 }
